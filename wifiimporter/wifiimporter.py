@@ -1,5 +1,7 @@
 import pymysql
 import pandas as pd
+import csv
+
 
 def mysql_db_create(host, user, password, dbname):
     """ function to create MySQL database named dbname"""
@@ -74,6 +76,7 @@ def mysql_db_create(host, user, password, dbname):
         query = "ALTER TABLE `ssidchange` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT"
         cursor.execute(query)
 
+
 def appdb_network_read(host, user, password, dbname):
     """ function to read the list of networks from the application database """
     query = "SELECT netid, bssid, ssid, capabilities FROM network"
@@ -81,10 +84,11 @@ def appdb_network_read(host, user, password, dbname):
     with conn:
         cursor = conn.cursor()
         cursor.execute(query)
-        netdict = [{"netid": x[0], "bssid": x[1], "ssid": x[2], "capabilities": x[3]} for x in cursor.fetchall()]
-        resultdf = pd.DataFrame(netdict)
+        netlist = [{"netid": x[0], "bssid": x[1], "ssid": x[2], "capabilities": x[3]} for x in cursor.fetchall()]
+        resultdf = pd.DataFrame(netlist)
     conn.close()
     return resultdf
+
 
 def appdb_location_read(host, user, password, dbname, netid):
     """ function to read the list of location from the application database by netid """
@@ -93,10 +97,44 @@ def appdb_location_read(host, user, password, dbname, netid):
     with conn:
         cursor = conn.cursor()
         cursor.execute(query)
-        locdict = [{"level": x[0], "lat": x[1], "lon": x[2], "altitude": x[3], "accuracy": x[4], "time": x[5]} for x in cursor.fetchall()]
-        result = pd.DataFrame(locdict)
+        loclist = [{"level": x[0], "lat": x[1], "lon": x[2], "altitude": x[3], "accuracy": x[4], "time": x[5]} for x in cursor.fetchall()]
+        result = pd.DataFrame(loclist)
     conn.close()
     return result
+
+
+def wiglecsv_network_read(locdf):
+    """ function to get the list of networks contained in dataframe obtained from the WiGLE csv file
+        argument: dataframe containing the location recorded in the WiGLE csv file returned function wiglecsv_location_read
+        return: dataframe containing the network recorded in the WiGLE csv file
+    """
+    networkdf = locdf.groupby('bssid', as_index=False).first()[["bssid", "ssid", "frequency", "capabilities"]]
+    return networkdf
+
+
+def wiglecsv_location_read(path):
+    """ function to read the list of location from WiGLE csv file
+        argument: WiGLE csv file path
+        return: dataframe containing the location recorded in the WiGLE csv file
+    """
+    f_csv = open(path, "r", encoding="UTF8")
+    csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
+    next(csv_data)
+    #next(csv_data)
+    loclist = [{"bssid": x[0], "ssid": x[1], "capabilities": x[2], "time": x[3], "frequency": x[4], "level": x[5], "lat": x[6], "lon": x[7], "altitude": x[8], "accuracy": x[9]} for x in csv_data if x[10] == "WIFI"]
+    result = pd.DataFrame(loclist)
+    return result
+
+
+def wiglecsv_device_read(path):
+    """ function returns the device model from the WiGLE csv file
+        argument: WiGLE csv file path
+        return: string containing the device model from the WiGLE csv file
+    """
+    f_csv = open(path, "r", encoding="UTF8")
+    csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
+    return next(csv_data)[2][6:]
+
 
 if __name__ == "__main__":
     import logindata
@@ -105,4 +143,9 @@ if __name__ == "__main__":
     password = logindata.password
     dbname = logindata.dbname
     netid = 2
-    print(appdb_location_read(host, user, password, dbname, netid))
+
+    path = "test.csv"
+    csvdf = wiglecsv_location_read(path)
+    print(csvdf)
+    print(wiglecsv_network_read(csvdf))
+    print(wiglecsv_device_read(path))
