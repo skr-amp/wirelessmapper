@@ -86,6 +86,17 @@ def appdb_network_read(host, user, password, dbname):
     conn.close()
     return resultdf
 
+def appdb_location_read(host, user, password, dbname, netid):
+    """ function to read the list of location from the application database by netid """
+    query = "SELECT level, lat, lon, altitude, accuracy, time FROM location WHERE netid = '" + str(netid) + "'"
+    conn = pymysql.connect(host, user, password, dbname)
+    with conn:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        locdict = [{"level": x[0], "lat": x[1], "lon": x[2], "altitude": x[3], "accuracy": x[4], "time": x[5]} for x in cursor.fetchall()]
+        result = pd.DataFrame(locdict)
+    conn.close()
+    return result
 
 if __name__ == "__main__":
     import logindata
@@ -93,4 +104,5 @@ if __name__ == "__main__":
     user = logindata.user
     password = logindata.password
     dbname = logindata.dbname
-    print(appdb_network_read(host, user, password, dbname))
+    netid = 2
+    print(appdb_location_read(host, user, password, dbname, netid))
