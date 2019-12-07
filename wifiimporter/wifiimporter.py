@@ -1,6 +1,7 @@
 import pymysql
+import pandas as pd
 
-def MySQL_db_create(host, user, password, dbname):
+def mysql_db_create(host, user, password, dbname):
     """ function to create MySQL database named dbname"""
     conn = pymysql.connect(host, user, password)
     with conn:
@@ -52,8 +53,7 @@ def MySQL_db_create(host, user, password, dbname):
                     `bestlon` varchar(20) DEFAULT NULL,
                     `channel` tinyint(2) DEFAULT NULL,
                     `band` varchar(7) DEFAULT NULL,
-                    `vendor` tinytext,
-                    `password` varchar(30) DEFAULT NULL
+                    `vendor` tinytext
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8"""
         cursor.execute(query)
         query = "ALTER TABLE `network` ADD PRIMARY KEY (`netid`), ADD KEY `bssid` (`bssid`)"
@@ -74,10 +74,23 @@ def MySQL_db_create(host, user, password, dbname):
         query = "ALTER TABLE `ssidchange` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT"
         cursor.execute(query)
 
+def appdb_network_read(host, user, password, dbname):
+    """ function to read the list of networks from the application database """
+    query = "SELECT netid, bssid, ssid, capabilities FROM network"
+    conn = pymysql.connect(host, user, password, dbname)
+    with conn:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        netdict = [{"netid": x[0], "bssid": x[1], "ssid": x[2], "capabilities": x[3]} for x in cursor.fetchall()]
+        resultdf = pd.DataFrame(netdict)
+    conn.close()
+    return resultdf
+
+
 if __name__ == "__main__":
     import logindata
     host = logindata.host
     user = logindata.user
     password = logindata.password
-    dbname = "test123"
-    MySQL_db_create(host, user, password, dbname)
+    dbname = logindata.dbname
+    print(appdb_network_read(host, user, password, dbname))
