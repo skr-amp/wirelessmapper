@@ -134,7 +134,7 @@ def wiglecsv_location_read(path):
     csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
     next(csv_data)
     #next(csv_data)
-    loclist = [{"bssid": x[0], "ssid": x[1], "capabilities": x[2], "time": str_to_unixtime(x[3]), "frequency": channel_to_freq(x[4]), "level": x[5], "lat": x[6], "lon": x[7], "altitude": x[8], "accuracy": x[9]} for x in csv_data if x[10] == "WIFI"]
+    loclist = [{"bssid": x[0], "ssid": x[1], "capabilities": x[2], "time": str_to_unixtime(x[3]), "frequency": channel_to_freq(x[4]), "level": x[5], "lat": x[6], "lon": x[7], "altitude": x[8], "accuracy": x[9]} for x in csv_data if x[10] == "WIFI" and x[3][:4] != "1970"]
     result = pd.DataFrame(loclist)
     return result
 
@@ -157,8 +157,8 @@ if __name__ == "__main__":
     dbname = logindata.dbname
     netid = 2
 
-    path = "test.csv"
+    path = "2.csv"
     csvdf = wiglecsv_location_read(path)
-    print(csvdf["frequency"])
-    print(wiglecsv_network_read(csvdf))
+    print(csvdf)
+    print(wiglecsv_network_read(csvdf)["ssid"])
     print(wiglecsv_device_read(path))
