@@ -1,6 +1,19 @@
 import pymysql
 import pandas as pd
 import csv
+from datetime import datetime
+
+
+def str_to_unixtime(timestr):
+    """ function for converting time from a string to UNIX format"""
+    time = datetime.strptime(timestr, '%Y-%m-%d %H:%M:%S')
+    return int(time.timestamp() * 1000)
+
+
+def channel_to_freq(channel):
+    """function returns the frequency corresponding to the channel"""
+    freqdict = {'1':2412, '2':2417, '3':2422, '4':2427, '5':2432, '6':2437, '7':2442, '8':2447, '9':2452, '10':2457, '11':2462, '12':2467, '13':2472, '14':2484}
+    return freqdict[channel]
 
 
 def mysql_db_create(host, user, password, dbname):
@@ -121,7 +134,7 @@ def wiglecsv_location_read(path):
     csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
     next(csv_data)
     #next(csv_data)
-    loclist = [{"bssid": x[0], "ssid": x[1], "capabilities": x[2], "time": x[3], "frequency": x[4], "level": x[5], "lat": x[6], "lon": x[7], "altitude": x[8], "accuracy": x[9]} for x in csv_data if x[10] == "WIFI"]
+    loclist = [{"bssid": x[0], "ssid": x[1], "capabilities": x[2], "time": str_to_unixtime(x[3]), "frequency": channel_to_freq(x[4]), "level": x[5], "lat": x[6], "lon": x[7], "altitude": x[8], "accuracy": x[9]} for x in csv_data if x[10] == "WIFI"]
     result = pd.DataFrame(loclist)
     return result
 
@@ -146,6 +159,6 @@ if __name__ == "__main__":
 
     path = "test.csv"
     csvdf = wiglecsv_location_read(path)
-    print(csvdf)
+    print(csvdf["frequency"])
     print(wiglecsv_network_read(csvdf))
     print(wiglecsv_device_read(path))
