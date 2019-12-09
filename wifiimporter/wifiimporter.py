@@ -2,6 +2,7 @@ import pymysql
 import pandas as pd
 import csv
 from datetime import datetime
+import macvendor
 
 
 def str_to_unixtime(timestr):
