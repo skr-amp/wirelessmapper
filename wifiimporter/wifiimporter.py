@@ -165,7 +165,7 @@ def appdb_newnetwork(appdb, network, locationdf, device, accuracy):
         deviceid = get_device_id(appdb, device)  # Get the device id from the application database
         app_location_add(appdb, location, netid, deviceid)  # Add the current network locations to the application database.
 
-        bestlevel = location['level'].min()  # Find the maximum signal strength among the records of the current network locations
+        bestlevel = location['level'].max()  # Find the maximum signal strength among the records of the current network locations
         bestlat = location.loc[location['level'] == location['level'].max()]['lat'].iloc[0]  # Find the latitude of the maximum signal level
         bestlon = location.loc[location['level'] == location['level'].max()]['lon'].iloc[0]  # Find the longitude of the maximum signal level
         channel = freq_to_channel(network['frequency'])  # Determine the channel number by frequency
@@ -242,6 +242,7 @@ def wiglecsv_location_read(path):
                 "accuracy": x[9]} for x in csv_data if x[10] == "WIFI" and x[3][:4] != "1970"]
     result = pd.DataFrame(loclist)
     result["accuracy"] = result["accuracy"].apply(pd.to_numeric)
+    result["level"] = result["level"].apply(pd.to_numeric)
     return result
 
 
@@ -259,8 +260,11 @@ def appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy):
     """The function adds the data read when importing the application database"""
     appdbnetwork = appdb_network_read(appdb)
     for index, network in importnetworkdf.iterrows():
-        networkcontaindb = appdbnetwork.loc[appdbnetwork["bssid"] == network["bssid"]]
-        print(network["bssid"], network["ssid"])
+        if appdbnetwork.empty:  # there are no entries in the network table of the application database
+            networkcontaindb = appdbnetwork
+        else:
+            networkcontaindb = appdbnetwork.loc[appdbnetwork["bssid"] == network["bssid"]]
+
         if networkcontaindb.empty:  # there are no records with the current bssid in the database
             print("network not in app database")
             result = appdb_newnetwork(appdb, network, importlocationdf, device, accuracy)
