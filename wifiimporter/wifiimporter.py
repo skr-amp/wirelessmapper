@@ -198,7 +198,6 @@ def get_device_id(appdb, devicename):
                 return id[0]
 
 
-
 def app_location_add(appdb, locations, netid, deviceid):
     """function writes location to the application database"""
     query = "INSERT INTO location (id, netid, level, lat, lon, altitude, accuracy, time, device_id) VALUES "
@@ -217,8 +216,17 @@ def app_location_add(appdb, locations, netid, deviceid):
 
 
 def appdb_network_change(appdb, netid, newssid, newcapabilities):
-    """"""
-    pass
+    """function should be called if the SSID and capabilities values of the imported data differ from the data in the
+    application database. The function adds an entry to the networkchange table with the previous ssid, capabilities,
+    and last observation time with these values"""
+    time = appdb_location_read(appdb, netid)['time'].max()
+    query = "INSERT INTO `networkchange` (`id`, `netid`, `ssid`, `capabilities`, `time`) VALUES (NULL, '" + str(netid) + "', '" + newssid + "', '" + newcapabilities + "', '" + str(time) + "')"
+    if appdb[0] == "mysql":
+        conn = pymysql.connect(appdb[1]["host"], appdb[1]["user"], appdb[1]["password"], appdb[1]["dbname"])
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+        conn.close()
 
 
 def appdb_one_network_update(appdb, network, networkcontaindb, locationdf, device, accuracy):
@@ -235,7 +243,7 @@ def appdb_one_network_update(appdb, network, networkcontaindb, locationdf, devic
     if not locations.empty:
         networkchange = (appbdssid != network["ssid"]) or (appdbcapabilities != network["capabilities"])
         if networkchange:
-            appdb_network_change(appdb, netid, network["ssid"], network["capabilities"])
+            appdb_network_change(appdb, netid, appbdssid, appdbcapabilities)
 
         netid = networkcontaindb["netid"].values[0]
         deviceid = get_device_id(appdb, device)  # Get the device id from the application database
@@ -346,4 +354,5 @@ if __name__ == "__main__":
     importnetworkdf = wiglecsv_network_read(importlocationdf)
     device = wiglecsv_device_read(path)
     #appdb_mysql_create(host, user, password, dbname)
-    appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy)
+    #appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy)
+    appdb_network_change(appdb, netid, "oldssid", "oldcapabilities")
