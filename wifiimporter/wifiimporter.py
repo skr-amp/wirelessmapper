@@ -215,35 +215,49 @@ def app_location_add(appdb, locations, netid, deviceid):
         conn.close()
 
 
-def appdb_network_change(appdb, netid, newssid, newcapabilities):
+def appdb_network_change(appdb, netid, appdbssid, appdbcapabilities, appdbmaxtime, importssid, importcapabilities, importmaxtime):
     """function should be called if the SSID and capabilities values of the imported data differ from the data in the
     application database. The function adds an entry to the networkchange table with the previous ssid, capabilities,
     and last observation time with these values"""
-    time = appdb_location_read(appdb, netid)['time'].max()
-    query = "INSERT INTO `networkchange` (`id`, `netid`, `ssid`, `capabilities`, `time`) VALUES (NULL, '" + str(netid) + "', '" + newssid + "', '" + newcapabilities + "', '" + str(time) + "')"
+    if importmaxtime > appdbmaxtime:
+        ssid = appdbssid
+        capabilities = appdbcapabilities
+        maxtime = appdbmaxtime
+    else:
+        ssid = importssid
+        capabilities = importcapabilities
+        maxtime = importmaxtime
     if appdb[0] == "mysql":
         conn = pymysql.connect(appdb[1]["host"], appdb[1]["user"], appdb[1]["password"], appdb[1]["dbname"])
         with conn:
             cursor = conn.cursor()
+            query = "INSERT INTO `networkchange` (`id`, `netid`, `ssid`, `capabilities`, `time`) VALUES (NULL, '" + str(
+                netid) + "', '" + ssid + "', '" + capabilities + "', '" + str(maxtime) + "')"
+            cursor.execute(query)
+            query = "UPDATE `network` SET `ssid` = '" + ssid + "', `capabilities` = '" + capabilities + "' WHERE `network`.`netid` = "+ str(maxtime)
             cursor.execute(query)
         conn.close()
 
 
-def appdb_one_network_update(appdb, network, networkcontaindb, locationdf, device, accuracy):
+def appdb_one_network_update(appdb, importnetwork, networkcontaindb, locationdf, device, accuracy):
     """the function of updating the network and adding its new locations to the application database"""
     netid = networkcontaindb["netid"].values[0]
-    appbdssid = networkcontaindb["ssid"].values[0]
+    appdbssid = networkcontaindb["ssid"].values[0]
     appdbcapabilities = networkcontaindb["capabilities"].values[0]
+    importssid = importnetwork["ssid"]
+    importcapabilities = importnetwork["capabilities"]
 
-    importlocations = locationdf.loc[(locationdf["bssid"] == network["bssid"]) & (locationdf["accuracy"].apply(pd.to_numeric) < accuracy)]
+    importlocations = locationdf.loc[(locationdf["bssid"] == importnetwork["bssid"]) & (locationdf["accuracy"].apply(pd.to_numeric) < accuracy)]
     importlocations = importlocations[["level", "lat", "lon", "altitude", "accuracy", "time"]]
     appdblocation = appdb_location_read(appdb, netid)
     locations = pd.concat([appdblocation, importlocations, appdblocation]).drop_duplicates(keep=False)
 
     if not locations.empty:
-        networkchange = (appbdssid != network["ssid"]) or (appdbcapabilities != network["capabilities"])
+        networkchange = (appdbssid != importssid) or (appdbcapabilities != importcapabilities)
         if networkchange:
-            appdb_network_change(appdb, netid, appbdssid, appdbcapabilities)
+            appdbmaxtime = appdblocation['time'].max()
+            importmaxtime = importlocations['time'].max()
+            appdb_network_change(appdb, netid, appdbssid, appdbcapabilities, appdbmaxtime, importssid, importcapabilities, importmaxtime)
 
         netid = networkcontaindb["netid"].values[0]
         deviceid = get_device_id(appdb, device)  # Get the device id from the application database
@@ -252,12 +266,12 @@ def appdb_one_network_update(appdb, network, networkcontaindb, locationdf, devic
         bestlevel = locations['level'].max()  # Find the maximum signal strength among the records of the current network locations
         bestlat = locations.loc[locations['level'] == locations['level'].max()]['lat'].iloc[0]  # Find the latitude of the maximum signal level
         bestlon = locations.loc[locations['level'] == locations['level'].max()]['lon'].iloc[0]  # Find the longitude of the maximum signal level
-        channel = freq_to_channel(network['frequency'])  # Determine the channel number by frequency
-        band = freq_band(network['frequency'])
-        vendor = macvendor.GetVendor(network['bssid'])  # Determine the manufacturer at the mac address
+        channel = freq_to_channel(importnetwork['frequency'])  # Determine the channel number by frequency
+        band = freq_band(importnetwork['frequency'])
+        vendor = macvendor.GetVendor(importnetwork['bssid'])  # Determine the manufacturer at the mac address
 
         appdb_network_add_param(appdb, netid, bestlevel, bestlat, bestlon, channel, band, vendor)  # Update the current network record in the application database
-    return {"netid": netid, "bssid": network["bssid"], "ssid": network['ssid'], "numberloc": len(locations)}
+    return {"netid": netid, "bssid": importnetwork["bssid"], "ssid": importnetwork['ssid'], "numberloc": len(locations)}
 
 
 def freq_band(freq):
@@ -309,14 +323,14 @@ def appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy):
     newnetwork = 0
     updatenetwork = 0
     newloc = 0
-    for index, network in importnetworkdf.iterrows():
+    for index, importnetwork in importnetworkdf.iterrows():
         if appdbnetwork.empty:  # there are no entries in the network table of the application database
             networkcontaindb = appdbnetwork
         else:
-            networkcontaindb = appdbnetwork.loc[appdbnetwork["bssid"] == network["bssid"]]
+            networkcontaindb = appdbnetwork.loc[appdbnetwork["bssid"] == importnetwork["bssid"]]
 
         if networkcontaindb.empty:  # there are no records with the current bssid in the database
-            result = appdb_newnetwork(appdb, network, importlocationdf, device, accuracy)
+            result = appdb_newnetwork(appdb, importnetwork, importlocationdf, device, accuracy)
             if result["numberloc"] != 0:
                 print("Network with bssid:" + result["bssid"] + " ssid:" + result["ssid"] + " added. Assigned id:" + str(result["netid"]) + ". " + str(result["numberloc"]) + " locations added.")
                 newnetwork += 1
@@ -325,7 +339,7 @@ def appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy):
                 print("Network with bssid:" + result["bssid"] + " ssid:" + result["ssid"] + " not added.")
 
         elif len(networkcontaindb) == 1:  # the database has one record with the current bssid
-            result = appdb_one_network_update(appdb, network, networkcontaindb, importlocationdf, device, accuracy)
+            result = appdb_one_network_update(appdb, importnetwork, networkcontaindb, importlocationdf, device, accuracy)
             if result["numberloc"] != 0:
                 print("Network with bssid:" + result["bssid"] + " ssid:" + result["ssid"] + " update. " + str(result["numberloc"]) + " locations added.")
                 updatenetwork += 1
@@ -354,5 +368,4 @@ if __name__ == "__main__":
     importnetworkdf = wiglecsv_network_read(importlocationdf)
     device = wiglecsv_device_read(path)
     #appdb_mysql_create(host, user, password, dbname)
-    #appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy)
-    appdb_network_change(appdb, netid, "oldssid", "oldcapabilities")
+    appdb_import(appdb, importnetworkdf, importlocationdf, device, accuracy)
