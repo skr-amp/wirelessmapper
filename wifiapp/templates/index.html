@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div id="mapid"></div>
+	<script>
+		var myJson;
+				
+		function getjsonbounds(){
+		  url = "getapmarkers?bounds=" + map.getBounds().toBBoxString();
+		  console.log(url);
+		  $.ajax({
+			  url,
+			  type: 'GET',
+			  success: onGetSuccess,
+			  error: onGetError
+			  });
+	      };
+		
+		function refresh(){
+		markers.clearLayers();
+		getjsonbounds();
+		}
+		
+		function onGetSuccess(data){
+		myJson = L.geoJson(data, {
+		onEachFeature: onEachFeature
+		});
+		markers.addLayer(myJson); // add it to the cluster group
+		map.addLayer(markers);		// add it to the map
+		};
+		
+		function onGetError(data){
+		console.log(data);
+		alert("Ваш запрос не может быть выполнен. Статус ошибки: "+data.status);
+		//document.getElementById('loading').style.display='none';	  
+		};
+		
+		
+		
+		var map = L.map('mapid').setView([58.049312, 56.038141], 15);
+		var tileUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',													//
+			tileAttribution = 'Map data <a target="_blank" href="http://www.openstreetmap.org">OpenStreetMap.org</a>' +		// Загрузка тайлов карты OpenStreetMap	
+			' contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>';							//
+		L.tileLayer(tileUrl,{attribution: tileAttribution}).addTo(map);														// 
+		var markers = L.markerClusterGroup();
+		refresh();
+		
+		map.on('moveend',function(e){
+		  refresh();
+		  info.update();
+	    });
+		
+		map.on('click',function(e){
+		  info.update();
+	    });
+		
+		var info = L.control({position: 'topright'});
+				
+		info.onAdd = function (map) {
+		  this._div = L.DomUtil.create('div', 'info'); 
+		  this.update();
+		  return this._div;
+		  };
+		
+		info.update = function (props) {
+		  //console.log(props);
+		  this._div.innerHTML = '<h4>Информация о точке доступа</h4>' +  (props ?
+			'SSID: <b>' + props.ssid + '</b>' +
+			'<br> BSSID: ' + props.bssid +
+			'<br> Вид защиты: ' + props.capabilities +
+			'<br> Канал: ' + props.channel +
+			'<br> Производитель: ' + props.vendor +
+			'<br> Лучший уровень сигнала: ' + props.bestlevel +
+			'<br> Время первого наблюдения: ' + props.firsttime +
+			'<br> Время последнего наблюдения: ' +  props.lasttime +
+			'<br> Количество наблюдений: ' + props.numberofloc//+
+			: 'Кликните на маркер');
+	      };
+		
+		info.addTo(map);
+		
+		function onEachFeature(feature, layer) {
+			layer.on({click: getapinfo});
+			layer.bindPopup('<b>SSID: </b>' + feature.properties.ssid +
+							'<br> <b>BSSID: </b> <a href="location/' + feature.id + '" target="_blank">' + feature.properties.bssid + '</a>'// +
+							);
+			}
+		
+		function getapinfo(e){
+		var layer = e.target;
+		url = "getapinfo?apid=" + layer.feature.id;
+		console.log(url);
+		  $.ajax({
+			  url,
+			  type: 'GET',
+			  error: onGetError,
+			  success: function (apinfo){
+				info.update(apinfo);
+			  }
+			  });
+		};
+		
+		
+	</script>
+{% endblock %}
