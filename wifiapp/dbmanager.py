@@ -48,10 +48,8 @@ def createdb(dbtype, dbname, **dbdata):
         conn.close()
 
 
-
-
-# try:
-#     createdb('sqlite', 'mydb')
-#     # createdb('mysql', 'mydb', dbhost='localhost', dbuser='root', dbpasswd='6170810088')
-# except Exception as e:
-#     print(e)
+#try:
+#    createdb('sqlite', 'mydb')
+#
+#except Exception as e:
+#    print(e)

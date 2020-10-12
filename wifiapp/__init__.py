@@ -6,4 +6,5 @@ app = Flask(__name__)
 socketio = SocketIO(app, async_mode='threading')
 app.config.from_object(Config)
 
+
 from wifiapp import routes
