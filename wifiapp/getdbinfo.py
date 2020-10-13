@@ -11,7 +11,7 @@ def apmarkers(bounds):
     maxlon = float(boundslist[2])  #
     aplist = []
 
-    if app.config['CURRENT_DB'] == 'sqlite':
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
         for ap in cursor.execute('SELECT * FROM ap WHERE bestlat BETWEEN ? AND ? AND bestlon BETWEEN ? AND ?', (minlat, maxlat, minlon, maxlon)):
