@@ -18,6 +18,14 @@ def apmarkers(bounds):
             aplist.append({"type": "Feature", "id": ap[0], "properties": {"ssid": ap[2], "bssid": ap[1]},
                            "geometry": {"type": "Point", "coordinates": [ap[6], ap[5]]}})
         conn.close()
+    elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+        conn = pymysql.connect(host=app.config['CURRENT_DB_HOST'], user=app.config['CURRENT_DB_USER'], password=app.config['CURRENT_DB_PASS'], db=app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM ap WHERE bestlat BETWEEN %s AND %s AND bestlon BETWEEN %s AND %s', (minlat, maxlat, minlon, maxlon))
+        for ap in cursor.fetchall():
+            aplist.append({"type": "Feature", "id": ap[0], "properties": {"ssid": ap[2], "bssid": ap[1]},
+                           "geometry": {"type": "Point", "coordinates": [ap[6], ap[5]]}})
+        conn.close()
     res = {"type": "FeatureCollection", "features": aplist}
     print(res)
     return jsonify(res)
