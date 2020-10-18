@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+		<title>{{ ap['ssid'] }} - {{ ap['bssid'] }}</title>
+		<link rel="stylesheet" href="{{ url_for('static', filename='location.css') }}" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+		integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+		crossorigin=""/>
+		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+		integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+		crossorigin=""></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<style>
+		#mapid {
+        position: absolute;
+        width: 99%;
+        height: 99%;
+      }
+		</style>
+    </head>
+    <body>
+        <div id="mapid"></div>
+
+	<script>
+		var map = L.map('mapid').setView([58.049312, 56.038141], 15);
+		var tileUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			tileAttribution = 'Map data <a target="_blank" href="http://www.openstreetmap.org">OpenStreetMap.org</a>' +
+			' contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>';
+		L.tileLayer(tileUrl,{attribution: tileAttribution}).addTo(map);
+
+		var locJson = {"type":"FeatureCollection","features":[
+		{% for location in ap['locations'] %}
+		{"type":"Feature","geometry":{"coordinates":[{{ location['lon'] }},{{ location['lat'] }}],"type":"Point"},"properties":{"level":{{ location['level'] }},"device":"{{ ap['devices'][location['deviceid']] }}","time":"{{ location['time'] }}"}},
+		{% endfor %}]};
+
+		var geojsonMarkerOptions = {
+        radius: 8,
+        fillColor: "#ff7800",
+        color: "#ffffff",
+        weight: 1,
+        opacity: 0,
+        fillOpacity: 0.4
+        };
+
+
+		{% for deviceid in ap['devices'] %}
+		var device{{ deviceid }} = L.geoJson(locJson, {
+		filter: function(feature, layer) {
+			return feature.properties.device == "{{ ap['devices'][deviceid] }}";
+			},
+		style: function(feature)
+			{
+			switch (true)
+				{
+				case feature.properties.level <= -85: return {fillColor: "#ff0000"};
+				case feature.properties.level > -85 && feature.properties.level <= -60: return {fillColor: "#ffff00"};
+				case feature.properties.level > -60: return {fillColor: "#008000"};
+				}
+			},
+		pointToLayer: function (feature, latlng)
+			{
+			return L.circleMarker(latlng, geojsonMarkerOptions);
+            },
+		onEachFeature: function (feature, layer) //functionality on click on feature
+			{
+			layer.bindPopup('<b>Уровень сигнала: </b>' + feature.properties.level + ' dBm<br>' +
+							'<b>Время наблюдения: </b>' + feature.properties.time + '<br>' +
+							'<b>Устройство: </b>' + feature.properties.device);
+			}
+		});
+		device{{ deviceid }}.addTo(map);		// add it to the map
+		{% endfor %}
+
+		var locations = L.featureGroup([
+		{% for deviceid in ap['devices'] %}
+		device{{ deviceid }},
+		{% endfor %}]);
+		map.fitBounds(locations.getBounds()); //set view on the cluster extend
+
+		var legend = L.control({position: 'bottomright'});
+		legend.onAdd = function (map) {
+		var div = L.DomUtil.create('div', 'info legend');
+		div.innerHTML = '<div class="square" style="background: green"></div>уровень сигнала выше -60 dBm <br>' +
+						'<div class="square" style="background: yellow"></div>уровень сигнала от -85 dBm до -60 dBm <br>' +
+						'<div class="square" style="background: red"></div>уровень сигнала ниже -85 dBm';
+		return div;
+		};
+		legend.addTo(map);
+
+		var info = L.control({position: 'topright'});
+		info.onAdd = function (map) {
+		var div = L.DomUtil.create('div', 'info');
+		div.innerHTML = "BSSID: {{ ap['bssid'] }} <br>" +
+						"SSID: {{ ap['ssid'] }} <br>" +
+						"Шифрование: {{ ap['capabilities'] }} <br>" +
+						"Канал: {{ ap['channel'] }} <br>" +
+						"Производитель: {{ ap['vendor'] }} <br>" +
+						"Количество наблюдений: {{ ap['numberofloc'] }} <br>" +
+						"Время первого наблюдения: {{ ap['firsttime'] }} <br>" +
+						"Время последнего наблюденя: {{ ap['lasttime'] }}";
+		return div;
+		};
+		info.addTo(map);
+
+		var overlayMaps = {
+			{% for deviceid in ap['devices'] %}
+			{{ ap['devices'][deviceid] }}: device{{ deviceid }},
+			{% endfor %}};
+		var deviceLayers = L.control.layers(null, overlayMaps, {collapsed: false});
+		deviceLayers.addTo(map);
+		$(".leaflet-control-layers-overlays").prepend("<label>Местоположения полученые устройствами:</label>");
+
+	</script>
+    </body>
+</html>
