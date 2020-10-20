@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <style>
+        table {
+        margin: 3%;
+        width: 94%; /* Ширина таблицы */
+        background: white; /* Цвет фона таблицы */
+        color: black; /* Цвет текста */
+        border-spacing: 1px; /* Расстояние между ячейками */
+        }
+        th {
+        background: CadetBlue; /* Цвет фона ячеек */
+        padding: 5px; /* Поля вокруг текста */
+        }
+        td {
+        background: Honeydew; /* Цвет фона ячеек */
+        padding: 5px; /* Поля вокруг текста */
+        }
+    </style>
+
+    <table>
+        <tr><th></th><th>Database name</th><th>Database type</th><th>Database host</th><th>Number of access points</th><th>Number of locations</th><th>Time interval</th><th>Description</th></tr>
+        {% for db in dblist %}
+            <tr><td>
+                {% if db['id'] == currentdbid %}
+                    Сurrent database
+                {% else %}
+                    <form action="/dbmanager" method="POST"><input type="hidden" name="dbid" value={{db['id']}}><input type="submit" value="Select database"></form>
+                {% endif %}
+            </td><td>{{db['dbname']}}</td><td>{{db['type']}}</td><td>{{db['host']}}</td><td>{{db['numberofap']}}</td><td>{{db['numberofloc']}}</td><td>{{db['timefirst']}}-{{db['timelast']}}</td><td>{{db['description']}}</td></tr>
+        {% endfor %}
+    </table>
+
+{% endblock %}

@@ -18,4 +18,3 @@ class Config(object):
     CURRENT_DB_PASS = dbinfo[5]
 
 
-

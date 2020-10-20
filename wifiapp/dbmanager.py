@@ -1,5 +1,7 @@
 import sqlite3
 import pymysql
+import os
+from wifiapp import app
 
 def createdb(dbtype, dbname, **dbdata):
     """function to create a new local sqlite or mysql database"""
@@ -47,9 +49,34 @@ def createdb(dbtype, dbname, **dbdata):
             conn.cursor().execute(sql)
         conn.close()
 
+def dblist():
+    res = []
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    for db in cursor.execute('SELECT * FROM databases'):
+        res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'locale database' if db[3] == None else db[3], 'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10]})
+    conn.close()
+    return res
 
+def setdb(dbid):
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute('UPDATE config SET option_value=? WHERE option_name="currentdbid"', dbid)
+    conn.commit()
+
+    cursor.execute('SELECT * FROM databases WHERE id=?', dbid)
+    dbinfo = cursor.fetchone()
+    app.config['CURRENT_DB_ID'] = dbid
+    app.config['CURRENT_DB_TYPE'] = dbinfo[1]
+    app.config['CURRENT_DB_NAME'] = dbinfo[2]
+    app.config['CURRENT_DB_HOST'] = dbinfo[3]
+    app.config['CURRENT_DB_USER'] = dbinfo[4]
+    app.config['CURRENT_DB_PASS'] = dbinfo[5]
+
+    conn.close()
 #try:
 #    createdb('sqlite', 'mydb')
 #
 #except Exception as e:
 #    print(e)
+
