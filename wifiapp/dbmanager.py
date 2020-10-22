@@ -54,26 +54,56 @@ def dblist():
     conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
     cursor = conn.cursor()
     for db in cursor.execute('SELECT * FROM databases'):
-        res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'locale database' if db[3] == None else db[3], 'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10]})
+        if db[1] == 'sqlite':
+            dbexsist = sqliteexist('wifiapp/localdb/' + db[2])
+        elif db[1] == 'mysql':
+            dbexsist = mysqlexist(db[2], db[3], db[4], db[5])
+        res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'locale database' if db[3] == None else db[3],
+                    'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10], 'dbexsist':dbexsist})
     conn.close()
     return res
 
 def setdb(dbid):
     conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute('UPDATE config SET option_value=? WHERE option_name="currentdbid"', dbid)
-    conn.commit()
-
     cursor.execute('SELECT * FROM databases WHERE id=?', dbid)
     dbinfo = cursor.fetchone()
-    app.config['CURRENT_DB_ID'] = dbid
-    app.config['CURRENT_DB_TYPE'] = dbinfo[1]
-    app.config['CURRENT_DB_NAME'] = dbinfo[2]
-    app.config['CURRENT_DB_HOST'] = dbinfo[3]
-    app.config['CURRENT_DB_USER'] = dbinfo[4]
-    app.config['CURRENT_DB_PASS'] = dbinfo[5]
+    if dbinfo[1] == 'sqlite':
+        dbexsist = sqliteexist('wifiapp/localdb/' + dbinfo[2])
+    elif dbinfo[1] == 'mysql':
+        dbexsist = mysqlexist(dbinfo[2], dbinfo[3], dbinfo[4], dbinfo[5])
 
+    if dbexsist:
+        cursor.execute('UPDATE config SET option_value=? WHERE option_name="currentdbid"', dbid)
+        conn.commit()
+        app.config['CURRENT_DB_ID'] = dbid
+        app.config['CURRENT_DB_TYPE'] = dbinfo[1]
+        app.config['CURRENT_DB_NAME'] = dbinfo[2]
+        app.config['CURRENT_DB_HOST'] = dbinfo[3]
+        app.config['CURRENT_DB_USER'] = dbinfo[4]
+        app.config['CURRENT_DB_PASS'] = dbinfo[5]
     conn.close()
+
+def sqliteexist(filename):
+    from os.path import isfile, getsize
+    if not isfile(filename):
+        return False
+    if getsize(filename) < 100: # SQLite database file header is 100 bytes
+        return False
+    with open(filename, 'rb') as fd:
+        header = fd.read(100)
+    return header[:16] == b'SQLite format 3\x00'
+
+def mysqlexist(dbname, dbhost, dbuser, dbpass):
+    try:
+        conn = pymysql.connect(host=dbhost, user=dbuser, password=dbpass)
+    except:
+        return False
+    cursor = conn.cursor()
+    cursor.execute('SHOW DATABASES')
+    dblist = cursor.fetchall()
+    conn.close()
+    return (dbname,) in dblist
 #try:
 #    createdb('sqlite', 'mydb')
 #

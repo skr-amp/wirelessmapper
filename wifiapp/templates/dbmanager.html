@@ -2,10 +2,17 @@
 
 {% block content %}
     <style>
-        table {
+        #databasetable {
         margin: 3%;
         width: 94%; /* Ширина таблицы */
         background: white; /* Цвет фона таблицы */
+        color: black; /* Цвет текста */
+        border-spacing: 1px; /* Расстояние между ячейками */
+        }
+        #legend {
+        width: 50%;
+        margin: 3%;
+        margin-left: auto;
         color: black; /* Цвет текста */
         border-spacing: 1px; /* Расстояние между ячейками */
         }
@@ -14,22 +21,35 @@
         padding: 5px; /* Поля вокруг текста */
         }
         td {
-        background: Honeydew; /* Цвет фона ячеек */
         padding: 5px; /* Поля вокруг текста */
         }
+
     </style>
 
-    <table>
+    <table id="databasetable">
         <tr><th></th><th>Database name</th><th>Database type</th><th>Database host</th><th>Number of access points</th><th>Number of locations</th><th>Time interval</th><th>Description</th></tr>
         {% for db in dblist %}
-            <tr><td>
+            <tr
+                {% if db['id'] == currentdbid %}
+                    bgcolor=#a5e6be
+                {% elif db['dbexsist'] %}
+                    bgcolor="Honeydew"
+                {% else %}
+                    bgcolor=#e6a5a5
+                {% endif %}
+            ><td>
                 {% if db['id'] == currentdbid %}
                     Сurrent database
+                {% elif not db['dbexsist'] %}
+                    Database unavailable
                 {% else %}
                     <form action="/dbmanager" method="POST"><input type="hidden" name="dbid" value={{db['id']}}><input type="submit" value="Select database"></form>
                 {% endif %}
             </td><td>{{db['dbname']}}</td><td>{{db['type']}}</td><td>{{db['host']}}</td><td>{{db['numberofap']}}</td><td>{{db['numberofloc']}}</td><td>{{db['timefirst']}}-{{db['timelast']}}</td><td>{{db['description']}}</td></tr>
         {% endfor %}
     </table>
-
+    <table id="legend">
+        <tr bgcolor="Honeydew"><th colspan="3">Table legend</th></tr>
+        <tr><td bgcolor=#a5e6be>Сurrent database</td><td bgcolor="Honeydew">Database unavailable</td><td bgcolor=#e6a5a5>Database unavailable</td></tr>
+    </table>
 {% endblock %}
