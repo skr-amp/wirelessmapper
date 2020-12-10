@@ -1,41 +1,31 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Wifimaper</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='dbmanager.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='navmenu.css') }}" />
+</head>
 
-{% block content %}
-    <style>
-        #databasetable {
-        margin: 3%;
-        width: 94%; /* Ширина таблицы */
-        background: white; /* Цвет фона таблицы */
-        color: black; /* Цвет текста */
-        border-spacing: 1px; /* Расстояние между ячейками */
-        }
-        #legend {
-        width: 50%;
-        margin: 3%;
-        margin-left: auto;
-        color: black; /* Цвет текста */
-        border-spacing: 1px; /* Расстояние между ячейками */
-        }
-        th {
-        background: CadetBlue; /* Цвет фона ячеек */
-        padding: 5px; /* Поля вокруг текста */
-        }
-        td {
-        padding: 5px; /* Поля вокруг текста */
-        }
+<nav class="top-menu">
+  <a class="navbar-logo" href=""><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
+  <ul class="menu-main">
+    <li><a href="{{ url_for('index') }}">Map</a></li>
+    <li><a href="{{ url_for('dbmanager') }}">Database manager</a></li>
+  </ul>
+</nav>
 
-    </style>
+<body>
 
-    <table id="databasetable">
+<table id="databasetable">
         <tr><th></th><th>Database name</th><th>Database type</th><th>Database host</th><th>Number of access points</th><th>Number of locations</th><th>Time interval</th><th>Description</th></tr>
         {% for db in dblist %}
             <tr
                 {% if db['id'] == currentdbid %}
-                    bgcolor=#a5e6be
+                    class="curentdb"
                 {% elif db['dbexsist'] %}
-                    bgcolor="Honeydew"
+                    class="availabledb"
                 {% else %}
-                    bgcolor=#e6a5a5
+                    class="unavailabledb"
                 {% endif %}
             ><td>
                 {% if db['id'] == currentdbid %}
@@ -43,13 +33,28 @@
                 {% elif not db['dbexsist'] %}
                     Database unavailable
                 {% else %}
-                    <form action="/dbmanager" method="POST"><input type="hidden" name="dbid" value={{db['id']}}><input type="submit" value="Select database"></form>
+                    <button class="selectbtn" onclick="window.location.href='images/deleteicon.svg'">Select database</button>
                 {% endif %}
-            </td><td>{{db['dbname']}}</td><td>{{db['type']}}</td><td>{{db['host']}}</td><td>{{db['numberofap']}}</td><td>{{db['numberofloc']}}</td><td>{{db['timefirst']}}-{{db['timelast']}}</td><td>{{db['description']}}</td></tr>
+             <img class="delbtn" onclick="window.location.href='#delform{{db['id']}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}"><img class="propbtn" onclick="window.location.href='#propform{{db['id']}}'" src="{{ url_for('static', filename='images/settingicon.svg')}}">
+             </td><td>{{db['dbname']}}</td><td>{{db['type']}}</td><td>{{db['host']}}</td><td>{{db['numberofap']}}</td><td>{{db['numberofloc']}}</td><td>{{db['timefirst']}}-{{db['timelast']}}</td><td>{{db['description']}}</td></tr>
         {% endfor %}
-    </table>
-    <table id="legend">
-        <tr bgcolor="Honeydew"><th colspan="3">Table legend</th></tr>
-        <tr><td bgcolor=#a5e6be>Сurrent database</td><td bgcolor="Honeydew">Database unavailable</td><td bgcolor=#e6a5a5>Database unavailable</td></tr>
-    </table>
-{% endblock %}
+</table>
+{% for db in dblist %}
+<a href="#x" class="overlay" id="propform{{db['id']}}"></a>
+        <form class="modal" name="db{{db['id']}}" method="POST" action="input">
+	        <input type="hidden" name="dbid" value={{db['id']}}>
+	        <label>Database name: {{db['dbname']}}</label>
+	        <label>Database type: {{db['type']}}</label>
+            {% if db['type'] == "mysql" %}
+            <label>Database host:</label>
+	        <input type="text" class="host" name="host" value="{{db['host']}}">
+	        <label>Database password:</label>
+	        <input type="text" class="password" name="password" value="123456">
+            {% endif %}
+            <label>Description:</label>
+            <textarea rows="4" cols="50" name="description" class="description" required>{{db['description']}}</textarea>
+            <input name="submit" class="btn" type="submit" value="Save changes" />
+        </form>
+{% endfor %}
+</body>
+</html>
