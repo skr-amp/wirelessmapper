@@ -58,7 +58,7 @@ def dblist():
             dbexsist = sqliteexist('wifiapp/localdb/' + db[2])
         elif db[1] == 'mysql':
             dbexsist = mysqlexist(db[2], db[3], db[4], db[5])
-        res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'locale database' if db[3] == None else db[3],
+        res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'local database' if db[3] == None else db[3], 'user':db[4], 'password':db[5],
                     'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10], 'dbexsist':dbexsist})
     conn.close()
     return res

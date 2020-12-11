@@ -144,6 +144,9 @@ input.host {
 	background: rgba(255, 255, 255, 0.4);
 
 }
+input.user {
+	background: rgba(255, 255, 255, 0.4);
+}
 input.password {
 	background: rgba(255, 255, 255, 0.4);
 }
@@ -229,7 +232,7 @@ opacity: 1;
 }
 
 .overlay:target+.modal{
-top: 25%;
+top: 15%;
 visibility: visible;
 opacity: 1;
 }

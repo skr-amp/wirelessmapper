@@ -1,5 +1,5 @@
 from wifiapp import app
-from flask import render_template, request, jsonify
+from flask import render_template, request, jsonify, redirect, url_for
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb
 
@@ -22,8 +22,12 @@ def location(apid):
 
 @app.route('/dbmanager', methods=['GET', 'POST'])
 def dbmanager():
-    if request.method == 'POST':
-        dbid = request.form['dbid']
-        setdb(dbid)
     return render_template('dbmanager.html', dblist=dblist(), currentdbid=int(app.config['CURRENT_DB_ID']))
+
+@app.route('/dbmanager/setcurentdb', methods=['GET'])
+def setcurentdb():
+    setdb(request.args.get('dbid'))
+    return redirect(url_for('dbmanager'))
+
+
 

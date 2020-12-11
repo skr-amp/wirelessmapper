@@ -33,9 +33,12 @@
                 {% elif not db['dbexsist'] %}
                     Database unavailable
                 {% else %}
-                    <button class="selectbtn" onclick="window.location.href='images/deleteicon.svg'">Select database</button>
+                    <button class="selectbtn" onclick="window.location.href='dbmanager/setcurentdb?dbid={{db['id']}}'">Select database</button>
                 {% endif %}
-             <img class="delbtn" onclick="window.location.href='#delform{{db['id']}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}"><img class="propbtn" onclick="window.location.href='#propform{{db['id']}}'" src="{{ url_for('static', filename='images/settingicon.svg')}}">
+             {% if db['id'] != currentdbid %}
+             <img class="delbtn" onclick="window.location.href='#delform{{db['id']}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}">
+             {% endif %}
+             <img class="propbtn" onclick="window.location.href='#propform{{db['id']}}'" src="{{ url_for('static', filename='images/settingicon.svg')}}">
              </td><td>{{db['dbname']}}</td><td>{{db['type']}}</td><td>{{db['host']}}</td><td>{{db['numberofap']}}</td><td>{{db['numberofloc']}}</td><td>{{db['timefirst']}}-{{db['timelast']}}</td><td>{{db['description']}}</td></tr>
         {% endfor %}
 </table>
@@ -48,8 +51,10 @@
             {% if db['type'] == "mysql" %}
             <label>Database host:</label>
 	        <input type="text" class="host" name="host" value="{{db['host']}}">
-	        <label>Database password:</label>
-	        <input type="text" class="password" name="password" value="123456">
+	        <label>Database user:</label>
+	        <input type="text" class="user" name="user" value="{{db['user']}}">
+            <label>Database password:</label>
+	        <input type="text" class="password" name="password" value="{{db['password']}}">
             {% endif %}
             <label>Description:</label>
             <textarea rows="4" cols="50" name="description" class="description" required>{{db['description']}}</textarea>
