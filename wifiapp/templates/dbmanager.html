@@ -44,17 +44,17 @@
 </table>
 {% for db in dblist %}
 <a href="#x" class="overlay" id="propform{{db['id']}}"></a>
-        <form class="modal" name="db{{db['id']}}" method="POST" action="input">
+        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/editinfo">
 	        <input type="hidden" name="dbid" value={{db['id']}}>
 	        <label>Database name: {{db['dbname']}}</label>
 	        <label>Database type: {{db['type']}}</label>
             {% if db['type'] == "mysql" %}
             <label>Database host:</label>
-	        <input type="text" class="host" name="host" value="{{db['host']}}">
+	        <input type="text" class="host" name="host" value="{{db['host']}}" {% if db['id'] == currentdbid %}disabled{% endif %}>
 	        <label>Database user:</label>
-	        <input type="text" class="user" name="user" value="{{db['user']}}">
+	        <input type="text" class="user" name="user" value="{{db['user']}}" {% if db['id'] == currentdbid %}disabled{% endif %}>
             <label>Database password:</label>
-	        <input type="text" class="password" name="password" value="{{db['password']}}">
+	        <input type="text" class="password" name="password" value="{{db['password']}}" {% if db['id'] == currentdbid %}disabled{% endif %}>
             {% endif %}
             <label>Description:</label>
             <textarea rows="4" cols="50" name="description" class="description" required>{{db['description']}}</textarea>

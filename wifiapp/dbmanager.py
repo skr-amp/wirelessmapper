@@ -104,9 +104,16 @@ def mysqlexist(dbname, dbhost, dbuser, dbpass):
     dblist = cursor.fetchall()
     conn.close()
     return (dbname,) in dblist
-#try:
-#    createdb('sqlite', 'mydb')
-#
-#except Exception as e:
-#    print(e)
 
+def editdbinfo(dbid, host, user, password, description):
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    if host != None:
+        cursor.execute('UPDATE databases SET host=? WHERE id=?',(host, dbid))
+    if user != None:
+        cursor.execute('UPDATE databases SET user=? WHERE id=?', (user, dbid))
+    if password != None:
+        cursor.execute('UPDATE databases SET password=? WHERE id=?', (password, dbid))
+    cursor.execute('UPDATE databases SET description=? WHERE id=?',(description, dbid))
+    conn.commit()
+    conn.close()

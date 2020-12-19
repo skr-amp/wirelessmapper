@@ -1,7 +1,7 @@
 from wifiapp import app
 from flask import render_template, request, jsonify, redirect, url_for
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
-from wifiapp.dbmanager import dblist, setdb
+from wifiapp.dbmanager import dblist, setdb, editdbinfo
 
 @app.route('/')
 @app.route('/index')
@@ -29,5 +29,14 @@ def setcurentdb():
     setdb(request.args.get('dbid'))
     return redirect(url_for('dbmanager'))
 
+@app.route('/dbmanager/editinfo', methods=['POST'])
+def editinfo():
+    dbid = request.form['dbid']
+    host = request.form.get('host')
+    user = request.form.get('user')
+    password = request.form.get('password')
+    description = request.form['description']
+    editdbinfo(dbid=dbid, host=host, user=user, password=password, description=description)
+    return redirect(url_for('dbmanager'))
 
 
