@@ -1,5 +1,5 @@
 from wifiapp import app
-from flask import render_template, request, jsonify, redirect, url_for
+from flask import render_template, request, jsonify, redirect, url_for, flash
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo
 
@@ -37,6 +37,7 @@ def editinfo():
     password = request.form.get('password')
     description = request.form['description']
     editdbinfo(dbid=dbid, host=host, user=user, password=password, description=description)
+    flash('Database information changed')
     return redirect(url_for('dbmanager'))
 
 
