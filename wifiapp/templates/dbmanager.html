@@ -15,12 +15,17 @@
 </nav>
 
 <body>
-{% for message in get_flashed_messages() %}
-    <div class="alert-info">
-        <p class="alerttext">{{ message }}</p>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class=alert-info>
+    <ul class="infocont">
+    {% for category, message in messages %}
+      <li class="{{ category }}">{{ message }}</li>
+    {% endfor %}
+    </ul>
     </div>
-{% endfor %}
-
+  {% endif %}
+{% endwith %}
 
 <table id="databasetable">
         <tr><th></th><th>Database name</th><th>Database type</th><th>Database host</th><th>Number of access points</th><th>Number of locations</th><th>Time interval</th><th>Description</th></tr>
@@ -73,7 +78,11 @@
         <form class="modal" name="db{{db['id']}}" method="POST" action="input">
             <input type="hidden" name="dbid" value={{db['id']}}>
             <label >Delete database from the list?</label>
+            {% if db["dbexsist"] %}
             <input type="checkbox" id="deldb" name="deldb" checked>
+            {% else %}
+            <input type="checkbox" title="Database unavailable" id="deldb" name="deldb" disabled>
+            {% endif %}
             <label for="deldb">{% if db['type'] == 'sqlite' %}also delete the database file
                                {% elif db['type'] == 'mysql'%}also remove database from server
                                {% endif %}</label>
@@ -81,7 +90,7 @@
         </form>
 {% endfor %}
 <a href="#x" class="overlay" id="addform"></a>
-        <form class="modal" name="db2" method="POST" action="input">
+        <form class="modal" name="db2" method="POST" action="/dbmanager/newdb">
             <label>Database type:</label>
             <select class="selecttype" name="dbtype" id="dbtype">
                 <option value="sqlite" id="sqlite">SQLite</option>
@@ -91,6 +100,8 @@
             <input type="text" class="dbname" name="dbname" value="mydb">
             <label>Database host:</label>
             <input type="text" class="host" name="host" value="127.0.0.1" id="newhost">
+            <label>Database user:</label>
+            <input type="text" class="user" name="user" value="root" id="newuser">
             <label>Database password:</label>
             <input type="text" class="password" name="password" value="123456" id="newpassword">
             <label>Description:</label>
@@ -104,6 +115,7 @@
 <script type="text/javascript">
     var dbtype = document.getElementById("dbtype"),
         host = document.getElementById("newhost"),
+        user = document.getElementById("newuser"),
         password = document.getElementById("newpassword"),
         add = document.getElementById("add"),
         create = document.getElementById("create"),
@@ -112,10 +124,12 @@
     switch (dbtype.value) {
     case 'sqlite':
         host.disabled = 'disabled';
+        user.disabled = 'disabled';
         password.disabled = 'disabled';
         break;
     case 'mysql':
         host.disabled = '';
+        user.disabled = '';
         password.disabled = '';
         break;
      }

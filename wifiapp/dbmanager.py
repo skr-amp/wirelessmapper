@@ -2,8 +2,9 @@ import sqlite3
 import pymysql
 import os
 from wifiapp import app
+from flask import flash
 
-def createdb(dbtype, dbname, **dbdata):
+def createdb(dbtype, dbname, dbdata):
     """function to create a new local sqlite or mysql database"""
     createsql = ("""CREATE TABLE ap (
 	                    id INTEGER NOT NULL, 
@@ -32,49 +33,147 @@ def createdb(dbtype, dbname, **dbdata):
 	                    deviceid INTEGER, 
 	                    PRIMARY KEY (id))""")
 
-    if dbtype == 'sqlite':
-        conn = sqlite3.connect('localdb/' + dbname)
-        cursor = conn.cursor()
-        for sql in createsql:
-            cursor.execute(sql)
-        conn.commit()
-        conn.close()
-    elif dbtype == 'mysql':
-        conn = pymysql.connect(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpasswd'])
-        conn.cursor().execute('create database ' + dbname)
-        conn.close()
+    if dbexsist(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword']):
+        if dbtype == "sqlite":
+            flash("The database file already exists", "info")
+        elif dbtype == "mysql":
+            flash("The database already exists on the MySQL server", "info")
+        return adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription'])
+    else:
+        if dbtype == 'sqlite':
+            conn = sqlite3.connect('wifiapp/localdb/' + dbname)
+            cursor = conn.cursor()
+            for sql in createsql:
+                cursor.execute(sql)
+            conn.commit()
+            conn.close()
+        elif dbtype == 'mysql':
+            conn = pymysql.connect(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpassword'])
+            conn.cursor().execute('create database ' + dbname)
+            conn.close()
 
-        conn = pymysql.connect(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpasswd'], db=dbname)
-        for sql in createsql:
-            conn.cursor().execute(sql)
+            conn = pymysql.connect(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpassword'], db=dbname)
+            for sql in createsql:
+                conn.cursor().execute(sql)
+            conn.close()
+        return adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription'])
+
+
+def adddb(dbtype, dbname, dbhost, dbuser, dbpassword, dbdescription):
+    """Function for adding a record of a new database to the application database"""
+    if not dbexsist(dbtype=dbtype, dbname=dbname, dbhost=dbhost, dbuser=dbuser, dbpassword=dbpassword):
+        if dbtype == "sqlite":
+            flash("There is no such database file", "error")
+        elif dbtype == "mysql":
+            flash("Such a database does not exist on the MySQL server", "error")
+        return False
+    if not dbvalidate(dbtype=dbtype, dbname=dbname, dbhost=dbhost, dbuser=dbuser, dbpassword=dbpassword):
+        flash("Invalid format of the database being added", "error")
+        return False
+    if dbinappdb(dbtype=dbtype, dbname=dbname, dbhost=dbhost, dbuser=dbuser, dbpassword=dbpassword):
+        flash("The database is already in the list", "info")
+        return False
+    if dbtype == "sqlite":
+        sql = "INSERT INTO databases (type, dbname, description) VALUES('{}', '{}', '{}')".format(dbtype, dbname, dbdescription)
+    elif dbtype == "mysql":
+        sql = "INSERT INTO databases (type, dbname, host, user, password, description) VALUES('{}', '{}', '{}', '{}', '{}', '{}')".format(dbtype, dbname, dbhost, dbuser, dbpassword, dbdescription)
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    conn.commit()
+    conn.close()
+    return True
+
+def dbinappdb(dbtype, dbname, dbhost, dbuser, dbpassword):
+    """Checking if there is a new database in the application database"""
+    if dbtype == "sqlite":
+        sql = "SELECT * FROM databases WHERE type='sqlite' AND dbname='{}'".format(dbname)
+    elif dbtype == "mysql":
+        sql = "SELECT * FROM databases WHERE type='mysql' AND dbname='{}' AND host='{}' AND user='{}' AND password='{}'".format(dbname, dbhost, dbuser, dbpassword)
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    res = True if cursor.fetchone() else False
+    conn.close()
+    return res
+
+def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
+    """Function for checking the correctness of database tables and columns"""
+    tables = []
+    columns = []
+    reqtables = {'ap', 'device', 'location'}
+    reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor'},
+                 'device':{'id', 'devicename'},
+                 'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'}}
+    if dbtype == "sqlite":
+        conn = sqlite3.connect('wifiapp/localdb/' + dbname)
+        cursor = conn.cursor()
+        for table in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+            tables.append(table[0])
+    elif dbtype == "mysql":
+        conn = pymysql.connect(host=dbhost, user=dbuser, password=dbpassword, db=dbname)
+        cursor = conn.cursor()
+        cursor.execute('SHOW TABLES')
+        for table in cursor.fetchall():
+            tables.append(table[0])
+    conn.close()
+    if not reqtables.issubset(set(tables)):
+        return False
+
+    for tab in reqtables:
+        if dbtype == "sqlite":
+            conn = sqlite3.connect('wifiapp/localdb/' + dbname)
+            cursor = conn.cursor()
+            cursor.execute("select * from %s" % tab)
+            columns = list(map(lambda x: x[0], cursor.description))
+        elif dbtype == "mysql":
+            conn = pymysql.connect(host=dbhost, user=dbuser, password=dbpassword, db=dbname)
+            cursor = conn.cursor()
+            cursor.execute("DESCRIBE %s" % tab)
+            columns = list(map(lambda x: x[0], cursor.fetchall()))
         conn.close()
+        if not reqcolums[tab].issubset(set(columns)):
+            return False
+    return True
+
+def dbexsist(dbtype, dbname, **dbdata):
+    if dbtype == "sqlite":
+        return sqliteexist('wifiapp/localdb/' + dbname)
+    elif dbtype == "mysql":
+        return mysqlexist(dbname, dbdata['dbhost'], dbdata['dbuser'], dbdata['dbpassword'])
+
+
+def mysqlsrvexist(host, user, password):
+    try:
+        conn = pymysql.connect(host=host, user=user, password=password)
+    except:
+        flash("Access denied to MySQL server. Check authorization data: host, username and password." , "error")
+        return False
+    else:
+        conn.close()
+        return True
+
 
 def dblist():
     res = []
     conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
     cursor = conn.cursor()
     for db in cursor.execute('SELECT * FROM databases'):
-        if db[1] == 'sqlite':
-            dbexsist = sqliteexist('wifiapp/localdb/' + db[2])
-        elif db[1] == 'mysql':
-            dbexsist = mysqlexist(db[2], db[3], db[4], db[5])
+        exsist = dbexsist(dbtype=db[1], dbname=db[2], dbhost=db[3], dbuser=db[4], dbpassword=db[5])
         res.append({'id':db[0], 'dbname':db[2], 'type':db[1], 'host':'local database' if db[3] == None else db[3], 'user':db[4], 'password':db[5],
-                    'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10], 'dbexsist':dbexsist})
+                    'numberofap':db[6], 'numberofloc':db[7], 'timefirst':db[8], 'timelast':db[9], 'description':db[10], 'dbexsist':exsist})
     conn.close()
     return res
 
 def setdb(dbid):
     conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM databases WHERE id=?', dbid)
+    cursor.execute('SELECT * FROM databases WHERE id=?', (dbid,))
     dbinfo = cursor.fetchone()
-    if dbinfo[1] == 'sqlite':
-        dbexsist = sqliteexist('wifiapp/localdb/' + dbinfo[2])
-    elif dbinfo[1] == 'mysql':
-        dbexsist = mysqlexist(dbinfo[2], dbinfo[3], dbinfo[4], dbinfo[5])
+    exsist = dbexsist(dbtype=dbinfo[1], dbname=dbinfo[2], dbhost=dbinfo[3], dbuser=dbinfo[4], dbpassword=dbinfo[5])
 
-    if dbexsist:
-        cursor.execute('UPDATE config SET option_value=? WHERE option_name="currentdbid"', dbid)
+    if exsist:
+        cursor.execute('UPDATE config SET option_value=? WHERE option_name="currentdbid"', (dbid,))
         conn.commit()
         app.config['CURRENT_DB_ID'] = dbid
         app.config['CURRENT_DB_TYPE'] = dbinfo[1]

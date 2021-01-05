@@ -2,28 +2,31 @@
   background-color:  rgba(210, 210, 210,.8);
   border-color: #bce8f1;
   border-radius: 10px;
-  position: fixed;
-  top: 70px;
+  position: relative;
+  top: 65px;
   width: 90%;
   left: 5%;
-  height: 40px;
 }
-.alerttext{
+.infocont{
+  padding: 20px 30px;
+}
+.info{
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  font-size: 18px;
-  margin: 0;
-  position: absolute;
-  padding: 10px 25px;
+  font-size: 14px;
 }
-
+.error{
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  font-size: 14px;
+  color: red;
+}
 table {
 font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
 font-size: 14px;
 border-radius: 10px;
 border-spacing: 0;
 text-align: center;
-position: absolute;
-top: 120px;
+position: relative;
+top: 70px;
 width: 90%;
 left: 5%;
 }
@@ -300,7 +303,7 @@ opacity: 1;
 }
 
 .overlay:target+.modal{
-top: 15%;
+top: 5%;
 visibility: visible;
 opacity: 1;
 }
