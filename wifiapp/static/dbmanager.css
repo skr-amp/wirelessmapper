@@ -261,6 +261,10 @@ input:focus, textarea:focus {
     background: #b3b3b3;
  }
 
+.disable {
+    color: grey;
+}
+
 .overlay {
 top: 0;
 right: 0;

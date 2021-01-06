@@ -75,7 +75,7 @@
 {% endfor %}
 {% for db in dblist %}
 <a href="#x" class="overlay" id="delform{{db['id']}}"></a>
-        <form class="modal" name="db{{db['id']}}" method="POST" action="input">
+        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/deletedb">
             <input type="hidden" name="dbid" value={{db['id']}}>
             <label >Delete database from the list?</label>
             {% if db["dbexsist"] %}
@@ -83,9 +83,10 @@
             {% else %}
             <input type="checkbox" title="Database unavailable" id="deldb" name="deldb" disabled>
             {% endif %}
-            <label for="deldb">{% if db['type'] == 'sqlite' %}also delete the database file
-                               {% elif db['type'] == 'mysql'%}also remove database from server
-                               {% endif %}</label>
+            <label for="deldb" {% if not db["dbexsist"] %} class="disable" {% endif %}>
+                {% if db['type'] == 'sqlite' %}also delete the database file
+                {% elif db['type'] == 'mysql'%}also remove database from server
+                {% endif %}</label>
             <input name="submit" class="btn" type="submit" value="Delete" />
         </form>
 {% endfor %}

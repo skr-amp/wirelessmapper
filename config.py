@@ -8,7 +8,7 @@ class Config(object):
     cur = conn.cursor()
     cur.execute('SELECT option_value FROM config WHERE option_name="currentdbid"')
     CURRENT_DB_ID = cur.fetchone()[0]
-    cur.execute('SELECT * FROM databases WHERE id=?', CURRENT_DB_ID)
+    cur.execute('SELECT * FROM databases WHERE id=?', (CURRENT_DB_ID,))
     dbinfo = cur.fetchone()
     conn.close()
     CURRENT_DB_TYPE = dbinfo[1]

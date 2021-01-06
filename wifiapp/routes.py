@@ -1,7 +1,7 @@
 from wifiapp import app
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
-from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb
+from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
 
 @app.route('/')
 @app.route('/index')
@@ -55,14 +55,16 @@ def newdb():
             flash("Database not added." , "error")
             return redirect(url_for('dbmanager'))
     if addorcrdb == "create":
-        if createdb(dbtype, dbname, dbdata):
-            flash("Database created", "info")
-        else:
+        if  not createdb(dbtype, dbname, dbdata):
             flash("Database not created", "error")
     elif addorcrdb == "add":
-        if adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription']):
-            flash("Database added.", "info")
-        else:
+        if not adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription']):
             flash("Database not added.", "error")
     return redirect(url_for('dbmanager'))
 
+@app.route('/dbmanager/deletedb', methods=['POST'])
+def deletedb():
+    if request.form.get('deldb'):
+        deldb(request.form.get('dbid'))
+    delfromappdb(request.form.get('dbid'))
+    return redirect(url_for('dbmanager'))

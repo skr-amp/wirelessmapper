@@ -38,7 +38,7 @@ def createdb(dbtype, dbname, dbdata):
             flash("The database file already exists", "info")
         elif dbtype == "mysql":
             flash("The database already exists on the MySQL server", "info")
-        return adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription'])
+        adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription'])
     else:
         if dbtype == 'sqlite':
             conn = sqlite3.connect('wifiapp/localdb/' + dbname)
@@ -56,6 +56,7 @@ def createdb(dbtype, dbname, dbdata):
             for sql in createsql:
                 conn.cursor().execute(sql)
             conn.close()
+        flash("Database created", "info")
         return adddb(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword'], dbdescription=dbdata['dbdescription'])
 
 
@@ -82,7 +83,38 @@ def adddb(dbtype, dbname, dbhost, dbuser, dbpassword, dbdescription):
     cursor.execute(sql)
     conn.commit()
     conn.close()
+    flash("Database added.", "info")
     return True
+
+def deldb(dbid):
+    """Function for deleting a database from a mysql server or local database by its ID"""
+    db = getdbinfo(dbid)
+    if db[1] == "sqlite":
+        os.remove(os.path.join('wifiapp/localdb/', db[2]))
+        flash("Local database file deleted", "info")
+    elif db[1] == "mysql":
+        conn = pymysql.connect(host=db[3], user=db[4], password=db[5])
+        conn.cursor().execute('DROP DATABASE IF EXISTS ' + db[2])
+        conn.close()
+        flash("Database deleted from the MySQL server", "info")
+
+def delfromappdb(dbid):
+    """Function to delete a database record from the application database by its ID"""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM databases WHERE id=?', (dbid,))
+    conn.commit()
+    conn.close()
+    flash("Database is removed from the list", "info")
+
+def getdbinfo(dbid):
+    """Function for getting information about the database from the application database by its ID"""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM databases WHERE id=?', (dbid,))
+    dbinfo = cursor.fetchone()
+    conn.close()
+    return dbinfo
 
 def dbinappdb(dbtype, dbname, dbhost, dbuser, dbpassword):
     """Checking if there is a new database in the application database"""
