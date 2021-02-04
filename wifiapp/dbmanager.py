@@ -6,7 +6,33 @@ from flask import flash
 
 def createdb(dbtype, dbname, dbdata):
     """function to create a new local sqlite or mysql database"""
-    createsql = ("""CREATE TABLE ap (
+
+    createsqlite = ("""CREATE TABLE ap (
+    	                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+    	                    bssid VARCHAR(18), 
+    	                    ssid VARCHAR(64), 
+    	                    frequency INTEGER, 
+    	                    capabilities VARCHAR(120), 
+    	                    bestlat FLOAT, 
+    	                    bestlon FLOAT, 
+    	                    bestlevel INTEGER, 
+    	                    vendor VARCHAR(120))""",
+                   """CREATE TABLE device (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                          devicename VARCHAR(64) UNIQUE)""",
+                   """CREATE TABLE location (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                          apid INTEGER, 
+                          level INTEGER, 
+                          lat FLOAT, 
+                          lon FLOAT, 
+                          altitude FLOAT, 
+                          accuracy FLOAT, 
+                          time DATETIME, 
+                          deviceid INTEGER)""")
+
+
+    createmysql = ("""CREATE TABLE ap (
 	                    id INTEGER NOT NULL AUTO_INCREMENT, 
 	                    bssid VARCHAR(18), 
 	                    ssid VARCHAR(64), 
@@ -43,7 +69,7 @@ def createdb(dbtype, dbname, dbdata):
         if dbtype == 'sqlite':
             conn = sqlite3.connect('wifiapp/localdb/' + dbname)
             cursor = conn.cursor()
-            for sql in createsql:
+            for sql in createsqlite:
                 cursor.execute(sql)
             conn.commit()
             conn.close()
@@ -53,7 +79,7 @@ def createdb(dbtype, dbname, dbdata):
             conn.close()
 
             conn = pymysql.connect(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpassword'], db=dbname)
-            for sql in createsql:
+            for sql in createmysql:
                 conn.cursor().execute(sql)
             conn.close()
         flash("Database created", "info")
