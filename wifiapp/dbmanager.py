@@ -7,7 +7,7 @@ from flask import flash
 def createdb(dbtype, dbname, dbdata):
     """function to create a new local sqlite or mysql database"""
     createsql = ("""CREATE TABLE ap (
-	                    id INTEGER NOT NULL, 
+	                    id INTEGER NOT NULL AUTO_INCREMENT, 
 	                    bssid VARCHAR(18), 
 	                    ssid VARCHAR(64), 
 	                    frequency INTEGER, 
@@ -18,11 +18,11 @@ def createdb(dbtype, dbname, dbdata):
 	                    vendor VARCHAR(120), 
 	                    PRIMARY KEY (id))""",
 	             """CREATE TABLE device (
-	                    id INTEGER NOT NULL, 
-	                    devicename VARCHAR(64), 
+	                    id INTEGER NOT NULL AUTO_INCREMENT, 
+	                    devicename VARCHAR(64) UNIQUE, 
 	                    PRIMARY KEY (id))""",
                  """CREATE TABLE location (
-	                    id INTEGER NOT NULL, 
+	                    id INTEGER NOT NULL AUTO_INCREMENT, 
 	                    apid INTEGER, 
 	                    level INTEGER, 
 	                    lat FLOAT, 

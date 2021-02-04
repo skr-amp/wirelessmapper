@@ -54,9 +54,17 @@
         {% endfor %}
             <tr class="tabbotom"><td><img class="addbtn" onclick="window.location.href='#addform'" src="{{ url_for('static', filename='images/adddatabaseicon.svg')}}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 </table>
+
+<form class="importform" id="importform" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" target="_blank">
+    <input type="file" name="file" id="file" class="input-file">
+    <input class="btn uploadbtn" type="submit" value="Upload" id="upload-button">
+</form>
+
+
+
 {% for db in dblist %}
 <a href="#x" class="overlay" id="propform{{db['id']}}"></a>
-        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/editinfo">
+        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/adddevice">
 	        <input type="hidden" name="dbid" value={{db['id']}}>
 	        <label>Database name: {{db['dbname']}}</label>
 	        <label>Database type: {{db['type']}}</label>

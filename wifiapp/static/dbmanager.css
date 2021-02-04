@@ -312,6 +312,16 @@ visibility: visible;
 opacity: 1;
 }
 
+.importform{
+  display: block;
+  position: relative;
+  top: 120px;
+}
+
+.uploadbtn{
+  width: 150px;
+}
+
 @media only screen and (min-width: 768px) and (max-width: 959px) {
 	.modal {
 		width: 95%;

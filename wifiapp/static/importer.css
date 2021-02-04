@@ -1,0 +1,121 @@
+.import {
+	margin-top: 50px;
+    margin-left: auto;
+    margin-right: auto;
+	width: 500px;
+	background-color: rgba(210, 210, 210, 0.9);
+	border-radius: 10px;
+	border: 1px solid rgba(120,120,120,.7);
+	padding: 10px 20px;
+	font-size: 18px;
+}
+input, select {
+	height: 28px;
+	font-size: 18px;
+}
+
+.importbtn, .addbtn {
+	display: block;
+	margin: 20px auto;
+    height: 60px;
+    width: 90%;
+}
+
+label {
+	display: block;
+	margin: 10px 0;
+}
+
+label.devicel, select, .adddevicebtn, label.accuracyl, input[type="number"], .devname {
+	display: inline-block;
+}
+
+.info {
+	position: fixed;
+	bottom: 30px;
+	right: 30px;
+	width: 500px;
+	height: 200px;
+	background-color: rgba(210, 210, 210, 0.9);
+	border-radius: 10px;
+	border: 1px solid rgba(120,120,120,.7);
+	padding: 10px 20px;
+}
+
+
+progress {
+  position: relative;
+  background-color: #f3f3f3;
+  border: 0;
+  height: 30px;
+  width: 100%;
+  border-radius: 10px;
+}
+
+form.modal {
+    overflow: hidden;
+    margin: 0 auto;
+    padding: 30px 30px 6px 30px;
+    min-width: 320px;
+    max-width: 520px;
+    width: 100%;
+    border: 1px solid rgba(120,120,120,.7);
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    background: rgba(210, 210, 210, 0.9);
+    -webkit-background-clip: padding-box;
+    -moz-background-clip: padding;
+    background-clip: padding-box;
+    -webkit-box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    -moz-box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    font-size: 18px;
+}
+
+.overlay {
+top: 0;
+right: 0;
+bottom: 0;
+left: 0;
+z-index: 10000;
+visibility: hidden;
+
+background-color: rgba(0, 0, 0, 0.8);
+opacity: 0;
+position: fixed;
+
+-webkit-transition: opacity .5s;
+-moz-transition: opacity .5s;
+-ms-transition: opacity .5s;
+-o-transition: opacity .5s;
+transition: opacity .5s;
+}
+
+.overlay:target {
+visibility: visible;
+opacity: 1;
+}
+
+.modal {
+ top: 0;
+ right: 0;
+ left: 0;
+ width: 50%;
+ z-index: 10001;
+
+ opacity: 0;
+ display: block;
+ visibility: hidden;
+ position: absolute;
+
+  -webkit-transition: opacity 500ms ease-in;
+  -moz-transition: opacity 500ms ease-in;
+  transition: opacity 500ms ease-in;
+}
+
+.overlay:target+.modal{
+top: 25%;
+visibility: visible;
+opacity: 1;
+}

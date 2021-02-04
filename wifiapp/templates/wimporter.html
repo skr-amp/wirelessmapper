@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Import {{filename}}</title>
+    <link href="{{url_for('static', filename='importer.css')}}" rel="stylesheet">
+</head>
+<body>
+<form class="import">
+	<label>File: {{filename}}</label>
+	<label>File type: {{fileinfo['app']}} css file</label>
+	<label>Number of entries in the file: {{fileinfo['location']}}</label>
+	<label class="devicel">Device: </label>
+	<select name="deviceid">
+	{% for device in devices.keys() %}
+		<option value="{{devices[device]}}" {% if device == fileinfo["device"] %} selected {% endif %}>{{device}}</option>
+	{% endfor %}
+	</select>
+	<input class="adddevicebtn" type="button" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
+	<label class="accuracyl" for="accuracy">Accuracy:</label>
+	<input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
+	<input class="importbtn" type="submit" value="Import">
+</form>
+
+<a href="#x" class="overlay" id="addform"></a>
+<form class="modal" name="db1" method="POST" action="/importer/adddevice">
+    <input type="hidden" name="filename" value={{filename}}>
+    <label class="devname">New device name:</label>
+    <input class="devname" type="text" name="devicename" {% if not fileinfo['device'] in devices.keys() %} value="{{fileinfo['device']}}" {% endif %}>
+    <input name="submit" class="addbtn" type="submit" value="Add device" />
+</form>
+</body>
+</html>

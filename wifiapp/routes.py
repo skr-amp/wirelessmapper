@@ -1,7 +1,9 @@
+import os
 from wifiapp import app
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
+from wifiapp.wimporter import csv_info_read, get_devices, add_device_db
 
 @app.route('/')
 @app.route('/index')
@@ -68,3 +70,26 @@ def deletedb():
         deldb(request.form.get('dbid'))
     delfromappdb(request.form.get('dbid'))
     return redirect(url_for('dbmanager'))
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    target = os.path.join(app.config['APP_ROOT'], 'upload/')
+    if not os.path.isdir(target):
+        os.mkdir(target)
+    file = request.files["file"]
+    if file:
+        filename = file.filename
+        extension = filename.rsplit('.', 1)[1]
+        destination = "/".join([target, filename])
+        if extension == "csv":
+            file.save(destination)
+            return redirect(url_for('importer', filename=filename))
+
+@app.route('/importer', methods=['GET'])
+def importer():
+    return render_template("wimporter.html", filename = request.args.get('filename'), fileinfo = csv_info_read(request.args.get('filename')), devices=get_devices())
+
+@app.route('/importer/adddevice', methods=['POST'])
+def adddevice():
+    add_device_db(request.form.get('devicename'))
+    return redirect(url_for('importer', filename=request.form.get('filename')))
