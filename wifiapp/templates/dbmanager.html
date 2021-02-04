@@ -64,7 +64,7 @@
 
 {% for db in dblist %}
 <a href="#x" class="overlay" id="propform{{db['id']}}"></a>
-        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/adddevice">
+        <form class="modal" name="db{{db['id']}}" method="POST" action="/dbmanager/editinfo">
 	        <input type="hidden" name="dbid" value={{db['id']}}>
 	        <label>Database name: {{db['dbname']}}</label>
 	        <label>Database type: {{db['type']}}</label>
