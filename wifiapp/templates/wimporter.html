@@ -6,7 +6,8 @@
     <link href="{{url_for('static', filename='importer.css')}}" rel="stylesheet">
 </head>
 <body>
-<form class="import">
+<form class="import" action="{{ url_for('wimport') }}" method="POST">
+	<input type="hidden" name="filename" value={{filename}}>
 	<label>File: {{filename}}</label>
 	<label>File type: {{fileinfo['app']}} css file</label>
 	<label>Number of entries in the file: {{fileinfo['location']}}</label>

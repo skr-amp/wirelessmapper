@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+		<title>Test</title>
+		<script src="https:\\cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+		<script src="https:\\ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+		</head>
+    <body>
+		<script type="text/javascript">
+			$(document).ready(function() {
+
+				var socket = io.connect('localhost:5000');
+
+				socket.on('message', function(msg) {
+					$("#messages").append('<li>'+msg["ssid"]+'</li>');
+					console.log(msg);
+				});
+
+			});
+		</script>
+
+		<u1 id="messages"></u1>
+
+    </body>
+
+</html>

@@ -1,9 +1,10 @@
 import os
-from wifiapp import app
+from wifiapp import app, socketio
 from flask import render_template, request, jsonify, redirect, url_for, flash
+from threading import Thread
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
-from wifiapp.wimporter import csv_info_read, get_devices, add_device_db
+from wifiapp.wimporter import csv_info_read, get_devices, add_device_db, wigle_csv_import
 
 @app.route('/')
 @app.route('/index')
@@ -93,3 +94,11 @@ def importer():
 def adddevice():
     add_device_db(request.form.get('devicename'))
     return redirect(url_for('importer', filename=request.form.get('filename')))
+
+@app.route('/wimport', methods=['POST'])
+def wimport():
+    filename = request.form.get('filename')
+    accuracy = request.form.get('accuracy')
+    deviceid = int(request.form.get('deviceid'))
+    Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
+    return render_template('import.html')

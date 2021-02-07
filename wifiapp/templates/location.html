@@ -105,7 +105,7 @@
 
 		var overlayMaps = {
 			{% for deviceid in ap['devices'] %}
-			{{ ap['devices'][deviceid] }}: device{{ deviceid }},
+			"{{ ap['devices'][deviceid] }}": device{{ deviceid }},
 			{% endfor %}};
 		var deviceLayers = L.control.layers(null, overlayMaps, {collapsed: false});
 		deviceLayers.addTo(map);
