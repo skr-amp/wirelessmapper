@@ -98,15 +98,19 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
                     numberap += 1
                 else:
                     aplist[bssid]["location"].append({"time":loctime, "level":loclevel, "lat":loclat, "lon":loclon, "altitude":localtitude, "accuracy":locaccuracy})
+        socketio.send({"msg": "number_of_loc_and_ap", "numberloc":numberloc, "numberap":numberap}, broadcast=True)
 
         addedap = 0
         addedloc = 0
+        checkloc =0
         for bssid in aplist.keys():
             apid = get_apid_in_db(bssid)
+            msg = {"msg": "importinfo"}
             if len(apid) == 1:      #if the database already has only one access point with this bssid
                 numberaddloc = add_loc_in_db(apid[0], aplist[bssid]["location"], deviceid)
                 addedloc += numberaddloc
                 calc_ap_coord(apid[0])
+                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apid[0])
             elif len(apid) > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
                 print("More than one access point with such bssid in the database: " + bssid)
             else:                   #there are no access points with this bssid in the database
@@ -115,10 +119,14 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
                 numberaddloc = add_loc_in_db(id, aplist[bssid]["location"], deviceid)
                 addedloc += numberaddloc
                 calc_ap_coord(id)
-
-        for bssid in aplist.keys():
-            socketio.send(aplist[bssid], broadcast=True)
-
+                msg["info"] = 'A new access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} has been added to the database. {2} new locations imported'.format(
+                    bssid, aplist[bssid]["ssid"], numberaddloc, id)
+            checkloc += len(aplist[bssid]["location"])
+            msg["checkloc"] = checkloc
+            socketio.send(msg, broadcast=True)
+        msg = {"msg": "resultinfo"}
+        msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
+        socketio.send(msg, broadcast=True)
 
 
 def channel_to_freq(channel):
@@ -181,17 +189,15 @@ def add_loc_in_db(apid, locations, deviceid):
 
 def calc_ap_coord(apid):
     """"""
-    clat = 0
-    clon = 0
-    loccount =0
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
-        for loc in cursor.execute("SELECT lat, lon FROM location WHERE apid=?", (apid, )):
-            clat += loc[0]
-            clon += loc[1]
-            loccount += 1
-        cursor.execute("UPDATE ap SET clat = ?, clon = ?  WHERE id = ?",(clat/loccount, clon/loccount, apid))
+        cursor.execute("SELECT lat, lon, level FROM location WHERE apid=? AND level = (SELECT MAX(level) FROM location WHERE apid=?)", (apid, apid))
+        res = cursor.fetchone()
+        bestlat = res[0]
+        bestlon = res[1]
+        bestlevel = res[2]
+        cursor.execute("UPDATE ap SET bestlat = ?, bestlon = ?, bestlevel = ?  WHERE id = ?",(bestlat, bestlon, bestlevel, apid))
         conn.commit()
         conn.close()
     #elif app.config['CURRENT_DB_TYPE'] == 'mysql':

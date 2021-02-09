@@ -101,4 +101,4 @@ def wimport():
     accuracy = request.form.get('accuracy')
     deviceid = int(request.form.get('deviceid'))
     Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
-    return render_template('import.html')
+    return render_template('import.html', filename = filename, accuracy = accuracy)

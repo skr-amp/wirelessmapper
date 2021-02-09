@@ -13,8 +13,8 @@ def createdb(dbtype, dbname, dbdata):
     	                    ssid VARCHAR(64), 
     	                    frequency INTEGER, 
     	                    capabilities VARCHAR(120), 
-    	                    clat FLOAT, 
-    	                    clon FLOAT, 
+    	                    bestlat FLOAT, 
+    	                    bestlon FLOAT, 
     	                    bestlevel INTEGER, 
     	                    vendor VARCHAR(120))""",
                    """CREATE TABLE device (
@@ -38,8 +38,8 @@ def createdb(dbtype, dbname, dbdata):
 	                    ssid VARCHAR(64), 
 	                    frequency INTEGER, 
 	                    capabilities VARCHAR(120), 
-	                    clat FLOAT, 
-	                    clon FLOAT, 
+	                    bestlat FLOAT, 
+	                    bestlon FLOAT, 
 	                    bestlevel INTEGER, 
 	                    vendor VARCHAR(120), 
 	                    PRIMARY KEY (id))""",
@@ -160,7 +160,7 @@ def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
     tables = []
     columns = []
     reqtables = {'ap', 'device', 'location'}
-    reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'clat', 'clon', 'bestlevel', 'vendor'},
+    reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor'},
                  'device':{'id', 'devicename'},
                  'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'}}
     if dbtype == "sqlite":

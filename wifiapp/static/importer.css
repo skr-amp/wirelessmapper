@@ -35,7 +35,6 @@ label.devicel, select, .adddevicebtn, label.accuracyl, input[type="number"], .de
 	bottom: 30px;
 	right: 30px;
 	width: 500px;
-	height: 200px;
 	background-color: rgba(210, 210, 210, 0.9);
 	border-radius: 10px;
 	border: 1px solid rgba(120,120,120,.7);
@@ -44,7 +43,6 @@ label.devicel, select, .adddevicebtn, label.accuracyl, input[type="number"], .de
 
 
 progress {
-  position: relative;
   background-color: #f3f3f3;
   border: 0;
   height: 30px;
