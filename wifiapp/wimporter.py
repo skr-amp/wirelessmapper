@@ -4,6 +4,7 @@ import os
 import sqlite3
 import pymysql
 from wifiapp import app
+from wifiapp.macvendor import GetVendor
 
 import time
 
@@ -160,7 +161,7 @@ def add_ap_in_db(ap):
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
         cursor.execute("INSERT INTO ap ('bssid', 'ssid', 'frequency', 'capabilities', 'vendor') VALUES(?, ?, ?, ?, ?)",
-                       (ap["bssid"], ap["ssid"], ap["frequency"], ap["capabilities"], "vendor"))  #!!!!add vendor
+                       (ap["bssid"], ap["ssid"], ap["frequency"], ap["capabilities"], GetVendor(ap["bssid"])))
         conn.commit()
         cursor.execute("SELECT LAST_INSERT_ROWID()")
         apid = cursor.fetchone()
