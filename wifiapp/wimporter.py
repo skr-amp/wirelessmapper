@@ -3,6 +3,7 @@ import datetime
 import os
 import sqlite3
 import pymysql
+import gzip
 from wifiapp import app
 from wifiapp.macvendor import GetVendor
 
@@ -13,7 +14,11 @@ def csv_info_read(filename):
     csv.field_size_limit(500000)
     target = os.path.join(app.config['APP_ROOT'], 'upload/')
     path = "/".join([target, filename])
-    f_csv = open(path, "r", encoding="UTF8")
+    extension = filename.rsplit('.', 1)[1]
+    if extension == "gz":
+        f_csv = gzip.open(path, 'rt', encoding="UTF8")
+    elif extension == "csv":
+        f_csv = open(path, "r", encoding="UTF8")
     csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
     firststr = next(csv_data)
     csv_info = {}
@@ -31,8 +36,7 @@ def csv_info_read(filename):
         csv_info["location"] = loc
         csv_info["uploadtime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     else:
-        csv_info["app"] = "UNKNOWN"
-        csv_info["device"] = "UNKNOWN"
+        return False
     return csv_info
 
 def get_devices():
@@ -74,7 +78,11 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
     with app.app_context():
         target = os.path.join(app.config['APP_ROOT'], 'upload/')
         path = "/".join([target, filename])
-        f_csv = open(path, "r", encoding="UTF8")
+        extension = filename.rsplit('.', 1)[1]
+        if extension == "gz":
+            f_csv = gzip.open(path, 'rt', encoding="UTF8")
+        elif extension == "csv":
+            f_csv = open(path, "r", encoding="UTF8")
         csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
         next(csv_data)
         time.sleep(1)

@@ -85,10 +85,15 @@ def upload():
         if extension == "csv":
             file.save(destination)
             return redirect(url_for('importer', filename=filename))
+        elif extension == "gz" and filename.rsplit('.', 2)[1] == "csv":
+            file.save(destination)
+            return redirect(url_for('importer', filename=filename))
 
 @app.route('/importer', methods=['GET'])
 def importer():
-    return render_template("wimporter.html", filename = request.args.get('filename'), fileinfo = csv_info_read(request.args.get('filename')), devices=get_devices())
+    fileinfo = csv_info_read(request.args.get('filename'))
+    if fileinfo:
+        return render_template("wimporter.html", filename = request.args.get('filename'), fileinfo = fileinfo, devices=get_devices())
 
 @app.route('/importer/adddevice', methods=['POST'])
 def adddevice():
