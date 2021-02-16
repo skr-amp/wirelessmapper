@@ -11,15 +11,15 @@ import time
 
 def csv_info_read(filename):
     """Getting information about a csv file"""
-    csv.field_size_limit(500000)
+    csv.field_size_limit(1000000)
     target = os.path.join(app.config['APP_ROOT'], 'upload/')
     path = "/".join([target, filename])
     extension = filename.rsplit('.', 1)[1]
     if extension == "gz":
-        f_csv = gzip.open(path, 'rt', encoding="UTF8")
+        f_csv = gzip.open(path, 'rt', encoding="latin-1")
     elif extension == "csv":
-        f_csv = open(path, "r", encoding="UTF8")
-    csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
+        f_csv = open(path, "r", encoding="latin-1")
+    csv_data = csv.reader((line.replace('\0', '') for line in f_csv), delimiter=',', quotechar='"')
     firststr = next(csv_data)
     csv_info = {}
     if firststr[0][:9] == "WigleWifi":
@@ -80,10 +80,10 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         path = "/".join([target, filename])
         extension = filename.rsplit('.', 1)[1]
         if extension == "gz":
-            f_csv = gzip.open(path, 'rt', encoding="UTF8")
+            f_csv = gzip.open(path, 'rt', encoding="latin-1")
         elif extension == "csv":
-            f_csv = open(path, "r", encoding="UTF8")
-        csv_data = csv.reader(f_csv, delimiter=',', quotechar='"')
+            f_csv = open(path, "r", encoding="latin-1")
+        csv_data = csv.reader((line.replace('\0', '') for line in f_csv), delimiter=',', quotechar='"')
         next(csv_data)
         time.sleep(1)
         aplist = {}
@@ -136,7 +136,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         msg = {"msg": "resultinfo"}
         msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
         socketio.send(msg, broadcast=True)
-
+        curent_db_info_update()
 
 def channel_to_freq(channel):
     """function returns the   frequency corresponding to the channel"""
@@ -197,7 +197,7 @@ def add_loc_in_db(apid, locations, deviceid):
     return locaddcount
 
 def calc_ap_coord(apid):
-    """"""
+    """function updates the access point record after adding new locations"""
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
@@ -211,3 +211,29 @@ def calc_ap_coord(apid):
         conn.close()
     #elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return True
+
+def curent_db_info_update():
+    """function updates information about the current database (number of records, time)
+    in the application database"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM ap")
+        numberap = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM location")
+        numberloc = cursor.fetchone()[0]
+        cursor.execute("SELECT MIN(time) FROM location")
+        firsttime = cursor.fetchone()[0]
+        cursor.execute("SELECT MAX(time) FROM location")
+        lasttime = cursor.fetchone()[0]
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+
+    conn = sqlite3.connect(os.path.join(os.getcwd(), 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute('UPDATE databases SET numberofap=? WHERE id=?', (numberap, app.config['CURRENT_DB_ID']))
+    cursor.execute('UPDATE databases SET numberofloc=? WHERE id=?', (numberloc, app.config['CURRENT_DB_ID']))
+    cursor.execute('UPDATE databases SET timefirst=? WHERE id=?', (firsttime, app.config['CURRENT_DB_ID']))
+    cursor.execute('UPDATE databases SET timelast=? WHERE id=?', (lasttime, app.config['CURRENT_DB_ID']))
+    conn.commit()
+    conn.close()
