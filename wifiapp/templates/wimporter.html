@@ -9,7 +9,7 @@
 <form class="import" action="{{ url_for('wimport') }}" method="POST">
 	<input type="hidden" name="filename" value={{filename}}>
 	<label>File: {{filename}}</label>
-	<label>File type: {{fileinfo['app']}} css file</label>
+	<label>File type: {{fileinfo['version']}} css file</label>
 	<label>Number of entries in the file: {{fileinfo['location']}}</label>
 	<label class="devicel">Device: </label>
 	<select name="deviceid">
@@ -18,7 +18,7 @@
 	{% endfor %}
 	</select>
 	<input class="adddevicebtn" type="button" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
-	<label class="accuracyl" for="accuracy">Accuracy:</label>
+	<label class="accuracyl" for="accuracy">GPS accuracy:</label>
 	<input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
 	<input class="importbtn" type="submit" value="Import">
 </form>

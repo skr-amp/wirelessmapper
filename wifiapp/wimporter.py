@@ -4,40 +4,55 @@ import os
 import sqlite3
 import pymysql
 import gzip
+import pathlib
 from wifiapp import app
 from wifiapp.macvendor import GetVendor
 
 import time
 
-def csv_info_read(filename):
-    """Getting information about a csv file"""
-    csv.field_size_limit(1000000)
+def check_file(filename):
+    """Getting information about a imported file"""
+    fileinfo = {}
     target = os.path.join(app.config['APP_ROOT'], 'upload/')
     path = "/".join([target, filename])
-    extension = filename.rsplit('.', 1)[1]
-    if extension == "gz":
-        f_csv = gzip.open(path, 'rt', encoding="latin-1")
-    elif extension == "csv":
-        f_csv = open(path, "r", encoding="latin-1")
-    csv_data = csv.reader((line.replace('\0', '') for line in f_csv), delimiter=',', quotechar='"')
-    firststr = next(csv_data)
-    csv_info = {}
-    if firststr[0][:9] == "WigleWifi":
-        csv_info["app"] = firststr[0]
-        csv_info["device"] = firststr[2][6:]
-        next(csv_data)
-        firsttime = next(csv_data)[3]
-        loc = 0
-        for line in csv_data:
-            endtime = line[3]
-            if line[10] == "WIFI": loc += 1
+    extension = pathlib.Path(path).suffixes
 
-        csv_info["time"] = firsttime + " - " + endtime
-        csv_info["location"] = loc
-        csv_info["uploadtime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        return False
-    return csv_info
+    # Check extension
+    if extension[0] == ".csv":
+        fileinfo["type"] = "csv"
+        if len(extension) > 1 and extension[1] == ".gz":
+            f_csv = gzip.open(path, 'rt', encoding="latin-1")
+        else:
+            f_csv = open(path, "r", encoding="latin-1")
+    elif extension[0] == ".sqlite":
+        fileinfo["type"] = "sqlite"
+
+    # Check application
+    if fileinfo["type"] == "csv":
+        csv_data = csv.reader((line.replace('\0', '') for line in f_csv), delimiter=',', quotechar='"')
+        firststr = next(csv_data)
+        if firststr[0][:9] == "WigleWifi":
+            fileinfo["app"] = firststr[0][:9]
+        #elif == "Kismet":
+    #elif fileinfo["type"] == "sqlite":
+
+    # Get info
+    if fileinfo["app"] ==  "WigleWifi":
+        if fileinfo["type"] == "csv":
+            fileinfo["version"] = firststr[0]
+            fileinfo["device"] = firststr[2][6:]
+            next(csv_data)
+            firsttime = next(csv_data)[3]
+            loc = 0
+            for line in csv_data:
+                endtime = line[3]
+                if line[10] == "WIFI": loc += 1
+            fileinfo["time"] = firsttime + " - " + endtime
+            fileinfo["location"] = loc
+        #elif fileinfo["type"] == "sqlite":
+    #elif fileinfo["app"] ==  "Kismet":
+
+    return fileinfo
 
 def get_devices():
     """Getting a dictionary of devices stored in the database"""
