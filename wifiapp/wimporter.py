@@ -1,5 +1,5 @@
 import csv
-import datetime
+import time
 import os
 import sqlite3
 import pymysql
@@ -8,7 +8,6 @@ import pathlib
 from wifiapp import app
 from wifiapp.macvendor import GetVendor
 
-import time
 
 def check_file(filename):
     """Getting information about a imported file"""
@@ -89,7 +88,7 @@ def add_device_db(device):
     return True
 
 def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
-    """"""
+    """imports data from a wigle csv file into the application database"""
     with app.app_context():
         target = os.path.join(app.config['APP_ROOT'], 'upload/')
         path = "/".join([target, filename])
@@ -104,18 +103,19 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         aplist = {}
         numberloc = 0
         numberap = 0
+        lasttime = 0
         for line in csv_data:
-            bssid = line[0]
-            ssid = line[1]
-            capabilities = line[2]
-            loctime = line[3]
-            channel = line[4]
-            loclevel = line[5]
-            loclat = line[6]
-            loclon = line[7]
-            localtitude = line[8]
-            locaccuracy = line[9]
-            if line[10] == "WIFI" and float(locaccuracy) < float(accuracy):
+            if line[10] == "WIFI" and float(line[9]) < float(accuracy):
+                bssid = line[0]
+                ssid = line[1]
+                capabilities = line[2]
+                loctime = line[3]
+                channel = line[4]
+                loclevel = line[5]
+                loclat = line[6]
+                loclon = line[7]
+                localtitude = line[8]
+                locaccuracy = line[9]
                 numberloc += 1
                 if len(aplist) == 0 or not bssid in aplist.keys():
                     aplist[bssid] = {"ssid":ssid, "capabilities":capabilities, "frequency":channel_to_freq(channel), "location":[{"time":loctime, "level":loclevel, "lat":loclat, "lon":loclon, "altitude":localtitude, "accuracy":locaccuracy}, ]}
@@ -128,14 +128,16 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         addedloc = 0
         checkloc =0
         for bssid in aplist.keys():
-            apid = get_apid_in_db(bssid)
+            apindb = get_ap_in_db(bssid)
             msg = {"msg": "importinfo"}
-            if len(apid) == 1:      #if the database already has only one access point with this bssid
-                numberaddloc = add_loc_in_db(apid[0], aplist[bssid]["location"], deviceid)
+            if len(apindb) == 1:      #if the database already has only one access point with this bssid
+                if apindb[0]["ssid"] != aplist[bssid]["ssid"] or apindb[0]["capabilities"] != aplist[bssid]["capabilities"]:
+                    ap_change(apindb[0], aplist[bssid])
+                numberaddloc = add_loc_in_db(apindb[0]["id"], aplist[bssid]["location"], deviceid)
                 addedloc += numberaddloc
-                calc_ap_coord(apid[0])
-                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apid[0])
-            elif len(apid) > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
+                calc_ap_coord(apindb[0]["id"])
+                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apindb[0]["id"])
+            elif len(apindb) > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
                 print("More than one access point with such bssid in the database: " + bssid)
             else:                   #there are no access points with this bssid in the database
                 id = add_ap_in_db({"bssid":bssid, "ssid":aplist[bssid]["ssid"], "capabilities":aplist[bssid]["capabilities"], "frequency":aplist[bssid]["frequency"] })
@@ -153,6 +155,34 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         socketio.send(msg, broadcast=True)
         curent_db_info_update()
 
+def ap_change(apindb, newap):
+    """records ssid, capabilities, and time from imported data other than stored in the application database."""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(time) FROM location WHERE apid=?", (apindb["id"],))
+        dblasttime = time.strptime(cursor.fetchone()[0], "%Y-%m-%d %H:%M:%S")
+        newlasttime = time.strptime("1970-01-01 05:00:00", "%Y-%m-%d %H:%M:%S")
+        for loc in newap["location"]:
+            print(loc["time"])
+            if time.strptime(loc["time"], "%Y-%m-%d %H:%M:%S") > newlasttime:
+                newlasttime = time.strptime(loc["time"], "%Y-%m-%d %H:%M:%S")
+        print(dblasttime)
+        print(newlasttime)
+        if newlasttime > dblasttime:
+            print("PISHHH")
+            cursor.execute("SELECT ssid, capabilities FROM ap WHERE id=?", (apindb["id"],))
+            res = cursor.fetchone()
+            oldssid = res[0]
+            oldcapabilities = res[1]
+            cursor.execute("INSERT INTO apchange ('apid', 'ssid', 'capabilities', 'time') VALUES(?, ?, ?, ?)", (apindb["id"], oldssid, oldcapabilities, time.strftime("%Y-%m-%d %H:%M:%S", dblasttime)))
+            cursor.execute("UPDATE ap SET ssid = ?, capabilities = ? WHERE id = ?", (newap["ssid"], newap["capabilities"], apindb["id"]))
+        else:
+            cursor.execute("INSERT INTO apchange ('apid', 'ssid', 'capabilities', 'time') VALUES(?, ?, ?, ?)", (apindb["id"], newap["ssid"], newap["capabilities"], time.strftime("%Y-%m-%d %H:%M:%S" ,newlasttime)))
+        conn.commit()
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+
 def channel_to_freq(channel):
     """function returns the   frequency corresponding to the channel"""
     freqdict = {'1': 2412, '2': 2417, '3': 2422, '4': 2427, '5': 2432, '6': 2437, '7': 2442, '8': 2447, '9': 2452,
@@ -165,18 +195,18 @@ def channel_to_freq(channel):
                 '171': 5855, '173': 5865, '177': 5885, '180': 5905}
     return freqdict[channel]
 
-def get_apid_in_db(bssid):
-    """Returns a list of access point IDs stored in the database with the specified bssid"""
-    ids = []
+def get_ap_in_db(bssid):
+    """Returns a list of access point IDs, ssid and capabilities stored in the database with the specified bssid"""
+    aps = []
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
-        for id in cursor.execute("SELECT id FROM ap WHERE bssid=?", (bssid,)):
-            ids.append(id[0])
+        for ap in cursor.execute("SELECT id, ssid, capabilities FROM ap WHERE bssid=?", (bssid,)):
+            aps.append({"id": ap[0], "ssid": ap[1], "capabilities": ap[2]}, )
         conn.close()
     #elif app.config['CURRENT_DB_TYPE'] == 'mysql':
 
-    return ids
+    return aps
 
 def add_ap_in_db(ap):
     """adds a new access point to the database and returns its id"""
@@ -252,3 +282,4 @@ def curent_db_info_update():
     cursor.execute('UPDATE databases SET timelast=? WHERE id=?', (lasttime, app.config['CURRENT_DB_ID']))
     conn.commit()
     conn.close()
+

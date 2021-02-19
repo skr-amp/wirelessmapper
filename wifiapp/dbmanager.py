@@ -29,7 +29,13 @@ def createdb(dbtype, dbname, dbdata):
                           altitude FLOAT, 
                           accuracy FLOAT, 
                           time DATETIME, 
-                          deviceid INTEGER)""")
+                          deviceid INTEGER)""",
+                  """CREATE TABLE apchange (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                          apid INTEGER, 
+                          ssid VARCHAR(64), 
+                          capabilities VARCHAR(120), 
+                          time DATETIME)""")
 
 
     createmysql = ("""CREATE TABLE ap (
@@ -57,7 +63,15 @@ def createdb(dbtype, dbname, dbdata):
 	                    accuracy FLOAT, 
 	                    time DATETIME, 
 	                    deviceid INTEGER, 
-	                    PRIMARY KEY (id))""")
+	                    PRIMARY KEY (id))""",
+                 """CREATE TABLE apchange (
+                   	    id INTEGER NOT NULL AUTO_INCREMENT, 
+                   	    apid INTEGER, 
+                   	    ssid VARCHAR(64), 
+	                    frequency INTEGER, 
+	                    capabilities VARCHAR(120), 
+                   	    time DATETIME, 
+                   	    PRIMARY KEY (id))""")
 
     if dbexsist(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword']):
         if dbtype == "sqlite":
@@ -159,10 +173,11 @@ def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
     """Function for checking the correctness of database tables and columns"""
     tables = []
     columns = []
-    reqtables = {'ap', 'device', 'location'}
+    reqtables = {'ap', 'device', 'location', 'apchange'}
     reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor'},
                  'device':{'id', 'devicename'},
-                 'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'}}
+                 'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'},
+                 'apchange':{'id', 'apid', 'ssid', 'capabilities'}}
     if dbtype == "sqlite":
         conn = sqlite3.connect('wifiapp/localdb/' + dbname)
         cursor = conn.cursor()
