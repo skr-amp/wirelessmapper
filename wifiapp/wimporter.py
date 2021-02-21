@@ -103,7 +103,6 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         aplist = {}
         numberloc = 0
         numberap = 0
-        lasttime = 0
         for line in csv_data:
             if line[10] == "WIFI" and float(line[9]) < float(accuracy):
                 bssid = line[0]
@@ -111,17 +110,19 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
                 capabilities = line[2]
                 loctime = line[3]
                 channel = line[4]
-                loclevel = line[5]
-                loclat = line[6]
-                loclon = line[7]
-                localtitude = line[8]
-                locaccuracy = line[9]
+                loclevel = int(line[5])
+                loclat = int(float(line[6]) * 100000000000000)
+                loclon = int(float(line[7]) * 100000000000000)
+                localtitude = int(float(line[7]) * 100)
+                locaccuracy = int(float(line[9]) * 100)
                 numberloc += 1
                 if len(aplist) == 0 or not bssid in aplist.keys():
-                    aplist[bssid] = {"ssid":ssid, "capabilities":capabilities, "frequency":channel_to_freq(channel), "location":[{"time":loctime, "level":loclevel, "lat":loclat, "lon":loclon, "altitude":localtitude, "accuracy":locaccuracy}, ]}
+                    # 0-lat 1-lon 2-altitude 3-accuracy 4-level 5-time 6-deviceid
+                    aplist[bssid] = {"ssid":ssid, "capabilities":capabilities, "frequency":channel_to_freq(channel),
+                                     "location":{(loclat, loclon, localtitude, locaccuracy, loclevel, loctime, deviceid)}}
                     numberap += 1
                 else:
-                    aplist[bssid]["location"].append({"time":loctime, "level":loclevel, "lat":loclat, "lon":loclon, "altitude":localtitude, "accuracy":locaccuracy})
+                    aplist[bssid]["location"].add((loclat, loclon, localtitude, locaccuracy, loclevel, loctime, deviceid))
         socketio.send({"msg": "number_of_loc_and_ap", "numberloc":numberloc, "numberap":numberap}, broadcast=True)
 
         addedap = 0
@@ -133,7 +134,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
             if len(apindb) == 1:      #if the database already has only one access point with this bssid
                 if apindb[0]["ssid"] != aplist[bssid]["ssid"] or apindb[0]["capabilities"] != aplist[bssid]["capabilities"]:
                     ap_change(apindb[0], aplist[bssid])
-                numberaddloc = add_loc_in_db(apindb[0]["id"], aplist[bssid]["location"], deviceid)
+                numberaddloc = add_loc_in_db(apindb[0]["id"], aplist[bssid]["location"])
                 addedloc += numberaddloc
                 calc_ap_coord(apindb[0]["id"])
                 msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apindb[0]["id"])
@@ -142,9 +143,9 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
             else:                   #there are no access points with this bssid in the database
                 id = add_ap_in_db({"bssid":bssid, "ssid":aplist[bssid]["ssid"], "capabilities":aplist[bssid]["capabilities"], "frequency":aplist[bssid]["frequency"] })
                 addedap += 1
-                numberaddloc = add_loc_in_db(id, aplist[bssid]["location"], deviceid)
+                numberaddloc = add_loc_in_db(id, aplist[bssid]["location"])
                 addedloc += numberaddloc
-                calc_ap_coord(id)
+                if numberaddloc > 0: calc_ap_coord(id)
                 msg["info"] = 'A new access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} has been added to the database. {2} new locations imported'.format(
                     bssid, aplist[bssid]["ssid"], numberaddloc, id)
             checkloc += len(aplist[bssid]["location"])
@@ -164,13 +165,9 @@ def ap_change(apindb, newap):
         dblasttime = time.strptime(cursor.fetchone()[0], "%Y-%m-%d %H:%M:%S")
         newlasttime = time.strptime("1970-01-01 05:00:00", "%Y-%m-%d %H:%M:%S")
         for loc in newap["location"]:
-            print(loc["time"])
-            if time.strptime(loc["time"], "%Y-%m-%d %H:%M:%S") > newlasttime:
-                newlasttime = time.strptime(loc["time"], "%Y-%m-%d %H:%M:%S")
-        print(dblasttime)
-        print(newlasttime)
+            if time.strptime(loc[5], "%Y-%m-%d %H:%M:%S") > newlasttime:
+                newlasttime = time.strptime(loc[5], "%Y-%m-%d %H:%M:%S")
         if newlasttime > dblasttime:
-            print("PISHHH")
             cursor.execute("SELECT ssid, capabilities FROM ap WHERE id=?", (apindb["id"],))
             res = cursor.fetchone()
             oldssid = res[0]
@@ -222,21 +219,24 @@ def add_ap_in_db(ap):
     #elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return apid[0]
 
-def add_loc_in_db(apid, locations, deviceid):
+def add_loc_in_db(apid, locations):
     """adds locations to the database and returns the number of added locations"""
-    locaddcount = 0
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
-        locindb = []
-        for loc in cursor.execute("SELECT time, deviceid FROM location WHERE apid=?", (apid, )):
-            locindb.append(loc)
-        for location in locations:
-            if not (location["time"], deviceid) in locindb:
-                cursor.execute("INSERT INTO location ('apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-                               (apid, location["level"], location["lat"], location["lon"], location["altitude"], location["accuracy"], location["time"], deviceid))
-                conn.commit()
-                locaddcount += 1
+        locindb = set()
+        # 0-lat 1-lon 2-altitude 3-accuracy 4-level 5-time 6-deviceid
+        for loc in cursor.execute("SELECT lat, lon, altitude, accuracy, level, time, deviceid FROM location WHERE apid=?", (apid, )):
+            locindb.add((loc[0], loc[1], loc[2], loc[3], loc[4], loc[5], loc[6]))
+        addloc = list(locations - locindb)
+        locaddcount = len(addloc)
+        addloclist = []
+        for loc in addloc:
+            loc = list(loc)
+            loc.append(apid)
+            addloclist.append(loc)
+        cursor.executemany("INSERT INTO location ('lat', 'lon', 'altitude', 'accuracy', 'level', 'time', 'deviceid', 'apid') VALUES(?, ?, ?, ?, ?, ?, ?, ?)", addloclist)
+        conn.commit()
         conn.close()
     #elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return locaddcount
