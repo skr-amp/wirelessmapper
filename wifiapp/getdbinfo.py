@@ -17,10 +17,10 @@ def freqToChannel(freq):
 def apmarkers(bounds):
     """function returns data about access points visible on the current map area"""
     boundslist = bounds.split(",") #
-    minlat = int(float(boundslist[1]) * 100000000000000)  #
-    maxlat = int(float(boundslist[3]) * 100000000000000)  # получение границ отображения точек доступа
-    minlon = int(float(boundslist[0]) * 100000000000000)  #
-    maxlon = int(float(boundslist[2]) * 100000000000000)  #
+    minlat = int(float(boundslist[1]) * 1000000)  #
+    maxlat = int(float(boundslist[3]) * 1000000)  # получение границ отображения точек доступа
+    minlon = int(float(boundslist[0]) * 1000000)  #
+    maxlon = int(float(boundslist[2]) * 1000000)  #
     aplist = []
 
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
@@ -28,7 +28,7 @@ def apmarkers(bounds):
         cursor = conn.cursor()
         for ap in cursor.execute('SELECT * FROM ap WHERE bestlat BETWEEN ? AND ? AND bestlon BETWEEN ? AND ?', (minlat, maxlat, minlon, maxlon)):
             aplist.append({"type": "Feature", "id": ap[0], "properties": {"ssid": ap[2], "bssid": ap[1]},
-                           "geometry": {"type": "Point", "coordinates": [ap[6]/100000000000000, ap[5]/100000000000000]}})
+                           "geometry": {"type": "Point", "coordinates": [ap[6]/1000000, ap[5]/1000000]}})
         conn.close()
     elif app.config['CURRENT_DB_TYPE'] == 'mysql':
         conn = pymysql.connect(host=app.config['CURRENT_DB_HOST'], user=app.config['CURRENT_DB_USER'], password=app.config['CURRENT_DB_PASS'], db=app.config['CURRENT_DB_NAME'])
@@ -101,7 +101,7 @@ def locationinfo(apid):
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
         for loc in cursor.execute('SELECT * FROM location WHERE apid=?', (apid,)):
-            res['locations'].append({'lat': loc[3]/100000000000000, 'lon': loc[4]/100000000000000, 'level': loc[2], 'time': loc[7], 'deviceid': loc[8]})
+            res['locations'].append({'lat': loc[3]/1000000, 'lon': loc[4]/1000000, 'level': loc[2], 'time': loc[7], 'deviceid': loc[8]})
         locdeviceid = []
         devices = {}
         for deviceid in cursor.execute('SELECT DISTINCT deviceid FROM location WHERE apid=?', (apid,)):

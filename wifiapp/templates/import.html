@@ -16,7 +16,7 @@
 				var socket = io.connect('localhost:5000');
 
 				socket.on('message', function(msg) {
-
+					console.log(msg);
 					if (msg["msg"]==='importinfo') {
 						$("#messages").append('<li>'+msg["info"]+'</li>');
 						$("#progressbar").attr("value", parseInt(msg["checkloc"], 10))
@@ -39,7 +39,8 @@
 
 		<div class="info">
 			<p>File: {{filename}}</p>
-			<p>File type: Wigle csv file</p>
+			<p>File type: {% if filetype == "csv" %} Wigle csv file
+						  {% elif filetype == "sqlite" %} Wigle sqlite file{% endif %}</p>
 			<p id="numberap">Number of access point records to import: </p>
 			<p id="numberloc">The number of imported records locations: </p>
 			<p id="accuracy">Accuracy (meters): {{accuracy}}</p>

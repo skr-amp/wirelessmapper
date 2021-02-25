@@ -8,9 +8,16 @@
 <body>
 <form class="import" action="{{ url_for('wimport') }}" method="POST">
 	<input type="hidden" name="filename" value={{filename}}>
+	<input type="hidden" name="filetype" value={{fileinfo["type"]}}>
 	<label>File: {{filename}}</label>
-	<label>File type: {{fileinfo['version']}} css file</label>
+	<label>File type: {% if fileinfo["type"] == "csv" %} {{fileinfo['version']}} css file
+					  {% elif fileinfo["type"] == "sqlite" %} Wigle sqlite backup file {% endif %}</label>
+	{% if fileinfo["type"] == "csv" %}
 	<label>Number of entries in the file: {{fileinfo['location']}}</label>
+	{% elif fileinfo["type"] == "sqlite" %}
+	<label>Number of networks in the file: {{fileinfo['network']}}</label>
+	<label>Number of locations in the file: {{fileinfo['location']}}</label>
+	{% endif %}
 	<label class="devicel">Device: </label>
 	<select name="deviceid">
 	{% for device in devices.keys() %}

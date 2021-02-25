@@ -5,6 +5,7 @@ import sqlite3
 import pymysql
 import gzip
 import pathlib
+from collections import Counter
 from wifiapp import app
 from wifiapp.macvendor import GetVendor
 
@@ -12,8 +13,8 @@ from wifiapp.macvendor import GetVendor
 def check_file(filename):
     """Getting information about a imported file"""
     fileinfo = {}
-    target = os.path.join(app.config['APP_ROOT'], 'upload/')
-    path = "/".join([target, filename])
+    target = os.path.join(app.config['APP_ROOT'], 'upload')
+    path = os.path.join(target, filename)
     extension = pathlib.Path(path).suffixes
 
     # Check extension
@@ -31,9 +32,26 @@ def check_file(filename):
         csv_data = csv.reader((line.replace('\0', '') for line in f_csv), delimiter=',', quotechar='"')
         firststr = next(csv_data)
         if firststr[0][:9] == "WigleWifi":
-            fileinfo["app"] = firststr[0][:9]
+            fileinfo["app"] = "WigleWifi"
         #elif == "Kismet":
-    #elif fileinfo["type"] == "sqlite":
+    elif fileinfo["type"] == "sqlite":
+        wiglesqlitereq = {
+            'android_metadata': {'locale'},
+            'location': {'_id', 'bssid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time'},
+            'network': {'bssid', 'ssid', 'frequency', 'capabilities', 'lasttime', 'lastlat', 'lastlon', 'type', 'bestlevel', 'bestlat', 'bestlon'}}
+        conn = sqlite3.connect(path)
+        cursor = conn.cursor()
+        tables = []
+        colmatch =[]
+        for table in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+            tables.append(table[0])
+        if set(wiglesqlitereq.keys()).issubset(set(tables)):
+            for tab in wiglesqlitereq.keys():
+                cursor.execute("select * from %s" % tab)
+                colmatch.append(wiglesqlitereq[tab].issubset(set(map(lambda x: x[0], cursor.description))))
+            if colmatch[0] and colmatch[1] and colmatch[2]:
+                fileinfo["app"] = "WigleWifi"
+        conn.close()
 
     # Get info
     if fileinfo["app"] ==  "WigleWifi":
@@ -48,7 +66,14 @@ def check_file(filename):
                 if line[10] == "WIFI": loc += 1
             fileinfo["time"] = firsttime + " - " + endtime
             fileinfo["location"] = loc
-        #elif fileinfo["type"] == "sqlite":
+        elif fileinfo["type"] == "sqlite":
+            conn = sqlite3.connect(path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM network WHERE type="W"')
+            fileinfo["network"] = cursor.fetchone()[0]
+            cursor.execute('SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W"')
+            fileinfo["location"] = cursor.fetchone()[0]
+            conn.close()
     #elif fileinfo["app"] ==  "Kismet":
 
     return fileinfo
@@ -111,8 +136,8 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
                 loctime = line[3]
                 channel = line[4]
                 loclevel = int(line[5])
-                loclat = int(float(line[6]) * 100000000000000)
-                loclon = int(float(line[7]) * 100000000000000)
+                loclat = int(float(line[6]) * 1000000)
+                loclon = int(float(line[7]) * 1000000)
                 localtitude = int(float(line[7]) * 100)
                 locaccuracy = int(float(line[9]) * 100)
                 numberloc += 1
@@ -128,18 +153,19 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         addedap = 0
         addedloc = 0
         checkloc =0
+        apdblist = get_list_ap_in_db()
         for bssid in aplist.keys():
-            apindb = get_ap_in_db(bssid)
             msg = {"msg": "importinfo"}
-            if len(apindb) == 1:      #if the database already has only one access point with this bssid
-                if apindb[0]["ssid"] != aplist[bssid]["ssid"] or apindb[0]["capabilities"] != aplist[bssid]["capabilities"]:
-                    ap_change(apindb[0], aplist[bssid])
-                numberaddloc = add_loc_in_db(apindb[0]["id"], aplist[bssid]["location"])
-                addedloc += numberaddloc
-                calc_ap_coord(apindb[0]["id"])
-                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apindb[0]["id"])
-            elif len(apindb) > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
-                print("More than one access point with such bssid in the database: " + bssid)
+            if bssid in apdblist.keys():
+                if apdblist[bssid]["count"] == 1:      #if the database already has only one access point with this bssid
+                    if apdblist[bssid]["info"][0]["ssid"] != aplist[bssid]["ssid"] or apdblist[bssid]["info"][0]["capabilities"] != aplist[bssid]["capabilities"]:
+                        ap_change(apdblist[bssid]["info"][0], aplist[bssid])
+                    numberaddloc = add_loc_in_db(apdblist[bssid]["info"][0]["id"], aplist[bssid]["location"])
+                    addedloc += numberaddloc
+                    if numberaddloc > 0: calc_ap_coord(apdblist[bssid]["info"][0]["id"])
+                    msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(bssid, aplist[bssid]["ssid"], numberaddloc, apdblist[bssid]["info"][0]["id"])
+                elif apdblist[bssid]["count"] > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
+                    print("More than one access point with such bssid in the database: " + bssid)
             else:                   #there are no access points with this bssid in the database
                 id = add_ap_in_db({"bssid":bssid, "ssid":aplist[bssid]["ssid"], "capabilities":aplist[bssid]["capabilities"], "frequency":aplist[bssid]["frequency"] })
                 addedap += 1
@@ -155,6 +181,62 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
         socketio.send(msg, broadcast=True)
         curent_db_info_update()
+
+def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):
+    """"""
+    time.sleep(1)
+    target = os.path.join(app.config['APP_ROOT'], 'upload')
+    path = os.path.join(target, filename)
+    importconn = sqlite3.connect(path)
+    importcursor = importconn.cursor()
+    importcursor.execute('SELECT COUNT(*) FROM network WHERE type="W"')
+    numberap = importcursor.fetchone()[0]
+    importcursor.execute(
+        'SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W"')
+    numberloc = importcursor.fetchone()[0]
+    socketio.send({"msg": "number_of_loc_and_ap", "numberloc": numberloc, "numberap": numberap}, broadcast=True)
+
+    importaplist = []
+    for ap in importcursor.execute('SELECT bssid, ssid, frequency, capabilities FROM network WHERE type="W"'):
+        importaplist.append({"bssid": ap[0], "ssid": ap[1], "frequency": ap[2], "capabilities": ap[3]})
+
+    addedap = 0
+    addedloc = 0
+    checkloc = 0
+    apdblist = get_list_ap_in_db()
+    for ap in importaplist:
+        msg = {"msg": "importinfo"}
+        if ap["bssid"] in apdblist.keys():
+            if apdblist[ap["bssid"]]["count"] == 1:  # if the database already has only one access point with this bssid
+                importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=?", (ap["bssid"],))
+                locations = set((int(float(x[0]) * 1000000), int(float(x[1]) * 1000000), int(float(x[2]) * 100), int(float(x[3]) * 100), x[4], x[5], int(deviceid)) for x in importcursor.fetchall())
+                ap["location"] = locations
+                if apdblist[ap["bssid"]]["info"][0]["ssid"] != ap["ssid"] or apdblist[ap["bssid"]]["info"][0]["capabilities"] != ap["capabilities"]:
+                    ap_change(apdblist[ap["bssid"]]["info"][0], ap)
+                numberaddloc = add_loc_in_db(apdblist[ap["bssid"]]["info"][0]["id"], locations)
+                addedloc += numberaddloc
+                if numberaddloc > 0: calc_ap_coord(apdblist[ap["bssid"]]["info"][0]["id"])
+                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(ap["bssid"], ap["ssid"], numberaddloc, apdblist[ap["bssid"]]["info"][0]["id"])
+            elif apdblist[ap["bssid"]]["count"] > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
+                print("More than one access point with such bssid in the database: " + ap["bssid"])
+        else:  # there are no access points with this bssid in the database
+            id = add_ap_in_db({"bssid": ap["bssid"], "ssid": ap["ssid"], "capabilities": ap["capabilities"], "frequency": ap["frequency"]})
+            addedap += 1
+            importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=?", (ap["bssid"],))
+            locations = set((int(float(x[0]) * 1000000), int(float(x[1]) * 1000000), int(float(x[2]) * 100), int(float(x[3]) * 100), int(x[4]), x[5], int(deviceid)) for x in importcursor.fetchall())
+            numberaddloc = add_loc_in_db(id, locations)
+            addedloc += numberaddloc
+            if numberaddloc > 0: calc_ap_coord(id)
+            msg["info"] = 'A new access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} has been added to the database. {2} new locations imported'.format(
+                ap["bssid"], ap["ssid"], numberaddloc, id)
+        checkloc += len(locations)
+        msg["checkloc"] = checkloc
+        socketio.send(msg, broadcast=True)
+    msg = {"msg": "resultinfo"}
+    msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
+    socketio.send(msg, broadcast=True)
+    curent_db_info_update()
+    importconn.close()
 
 def ap_change(apindb, newap):
     """records ssid, capabilities, and time from imported data other than stored in the application database."""
@@ -191,6 +273,22 @@ def channel_to_freq(channel):
                 '155': 5775, '157': 5785, '159': 5795, '160': 5800, '161': 5805, '163': 5815, '165': 5825, '167': 5835,
                 '171': 5855, '173': 5865, '177': 5885, '180': 5905}
     return freqdict[channel]
+
+def get_list_ap_in_db():
+    """"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT bssid FROM ap")
+        apcounter = Counter([x[0] for x in cursor.fetchall()])
+        aps = {}
+        for bssid in apcounter.keys():
+            aps[bssid] = {"count": apcounter[bssid], "info": []}
+        for ap in cursor.execute("SELECT bssid, id, ssid, capabilities FROM ap"):
+            aps[ap[0]]["info"].append({"id": ap[1], "ssid":ap[2], "capabilities": ap[3]})
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+    return aps
 
 def get_ap_in_db(bssid):
     """Returns a list of access point IDs, ssid and capabilities stored in the database with the specified bssid"""

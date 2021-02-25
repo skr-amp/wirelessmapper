@@ -4,7 +4,7 @@ from flask import render_template, request, jsonify, redirect, url_for, flash
 from threading import Thread
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
-from wifiapp.wimporter import check_file, get_devices, add_device_db, wigle_csv_import
+from wifiapp.wimporter import check_file, get_devices, add_device_db, wigle_csv_import, wigle_sqlite_import
 
 
 @app.route('/')
@@ -56,11 +56,10 @@ def newdb():
     addorcrdb = request.form.get('addorcrdb')
     dbname = request.form.get('dbname')
     dbtype = request.form.get('dbtype')
-    dbdata = {}
-    dbdata['dbhost'] = request.form.get('host')
-    dbdata['dbuser'] = request.form.get('user')
-    dbdata['dbpassword'] = request.form.get('password')
-    dbdata['dbdescription'] = request.form.get('description')
+    dbdata = {'dbhost': request.form.get('host'),
+              'dbuser': request.form.get('user'),
+              'dbpassword': request.form.get('password'),
+              'dbdescription': request.form.get('description')}
     if dbtype == "mysql":
         if not mysqlsrvexist(host=dbdata['dbhost'], user=dbdata['dbuser'], password=dbdata['dbpassword']):
             flash("Database not added.", "error")
@@ -99,6 +98,9 @@ def upload():
         elif extension == "gz" and filename.rsplit('.', 2)[1] == "csv":
             file.save(destination)
             return redirect(url_for('importer', filename=filename))
+        elif extension == "sqlite":
+            file.save(destination)
+            return redirect(url_for('importer', filename=filename))
 
 
 @app.route('/importer', methods=['GET'])
@@ -107,8 +109,8 @@ def importer():
     fileinfo = check_file(filename)
     if fileinfo["type"] == "csv" and fileinfo["app"] == "WigleWifi":
         return render_template("wimporter.html", filename=filename, fileinfo=fileinfo, devices=get_devices())
-    # elif fileinfo["type"] == "sqlite" and fileinfo["app"] == "WigleWifi"
-        # return
+    elif fileinfo["type"] == "sqlite" and fileinfo["app"] == "WigleWifi":
+        return render_template("wimporter.html", filename=filename, fileinfo=fileinfo, devices=get_devices())
 
 
 @app.route('/importer/adddevice', methods=['POST'])
@@ -122,5 +124,9 @@ def wimport():
     filename = request.form.get('filename')
     accuracy = request.form.get('accuracy')
     deviceid = int(request.form.get('deviceid'))
-    Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
-    return render_template('import.html', filename=filename, accuracy=accuracy)
+    filetype = request.form.get('filetype')
+    if filetype == "csv":
+        Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
+    elif filetype == "sqlite":
+        Thread(target=wigle_sqlite_import, args=(app, socketio, filename, accuracy, deviceid)).start()
+    return render_template('import.html', filename=filename, filetype=filetype, accuracy=accuracy)
