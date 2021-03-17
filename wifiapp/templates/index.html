@@ -1,6 +1,44 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <title>Wifimaper</title>
+		<meta charset="utf-8">
+		<link rel="stylesheet" href="{{ url_for('static', filename='wifi.css') }}" />
+		<link rel="stylesheet" href="{{ url_for('static', filename='navmenu.css') }}" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+		integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+		crossorigin=""/>
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+		integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+		crossorigin=""></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster-src.js"></script>
 
-{% block content %}
+		<style>
+		* {
+        margin: 0;
+        padding: 0;
+		}
+		#mapid {
+        position: absolute;
+        width: 100%;
+        height: 97%;
+		}
+		</style>
+</head>
+
+<nav class="top-menu">
+  <a class="navbar-logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
+  <ul class="menu-main">
+    <li><a href="{{ url_for('index') }}">Map</a></li>
+    <li><a href="{{ url_for('dbmanager') }}">Database manager</a></li>
+    <li><a href="{{ url_for('importmanager') }}">Import manager</a></li>
+  </ul>
+</nav>
+
+<body>
     <div id="mapid"></div>
 	<script>
 		var myJson;
@@ -102,4 +140,5 @@
 		
 		
 	</script>
-{% endblock %}
+</body>
+</html>

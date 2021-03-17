@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Import manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='navmenu.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='importmanager.css') }}" />
+</head>
+
+<nav class="top-menu">
+  <a class="navbar-logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
+  <ul class="menu-main">
+    <li><a href="{{ url_for('index') }}">Map</a></li>
+    <li><a href="{{ url_for('dbmanager') }}">Database manager</a></li>
+    <li><a href="{{ url_for('importmanager') }}">Import manager</a></li>
+  </ul>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class=alert-info>
+    <ul class="infocont">
+    {% for category, message in messages %}
+      <li class="{{ category }}">{{ message }}</li>
+    {% endfor %}
+    </ul>
+    </div>
+  {% endif %}
+{% endwith %}
+
+<table id="filetable">
+    <tr>
+        <th></th>
+        <th>Device</th>
+        <th>Filename</th>
+        <th>Filesize</th>
+        <th>Firsttime</th>
+        <th>Lasttime</th>
+        <th>Number of networks</th>
+        <th>Number of locations</th>
+        <th>Upload time</th>
+        <th>Import status</th>
+        <th></th>
+    </tr>
+    {% for source in sources %}
+        {% for i in range(uploadfiles[source['feature']]|length) %}
+        <tr>
+            {% if i==0 %}
+            <td rowspan="{{ uploadfiles[source['feature']]|length }}" >{% if source["app"] == "WigleWifi" and source["type"] == "sqlite" %}
+                                                                            Wigle sqlite database backup file
+                                                                       {% elif source["app"] == "WigleWifi" and source["type"] == "csv" %}
+                                                                            Wigle csv file
+                                                                       {% endif %}</td>
+            <td rowspan="{{ uploadfiles[source['feature']]|length }}" >
+                {% if source['device'] == None %}
+                    <form name="source{{source['feature']}}" method="POST" action="/importmanager/setsourcedevice">
+                        <input type="hidden" name="source" value={{source['feature']}}>
+                        <select name="device">
+	                    {% for device in devices.keys() %}
+		                    <option value="{{device}}"}>{{device}}</option>
+	                    {% endfor %}
+	                    </select>
+	                    <input type="button" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
+                        <button class="selectdev" type="submit">Select device</button>
+                    </form>
+                {% else %}
+                    {{source['device']}}
+                {% endif %}
+            </td>
+            {% endif %}
+            <td>{{uploadfiles[source['feature']][i]["filename"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["filesize"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["firsttime"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["lasttime"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["numberap"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["numberloc"]}}</td>
+            <td>{{uploadfiles[source['feature']][i]["uploadtime"]}}</td>
+            <td>{% if source['feature'] in importfiles.keys() %}
+                    {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
+                        File imported {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] }} with accuracy {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"] }}
+                    {% else %}
+                        File not imported
+                    {% endif %}
+                {% else %}
+                    File not imported
+                {% endif %}
+            </td>
+            <td>
+                {% if source["app"] == "WigleWifi" %}
+                    <form class="import" action="{{ url_for('wimport') }}" method="POST" target="_blank">
+                {% endif %}
+                        <input type="hidden" name="filename" value={{uploadfiles[source['feature']][i]["filename"]}}>
+	                    <input type="hidden" name="filetype" value={{source["type"]}}>
+                        <input type="hidden" name="device" value="{{source['device']}}">
+                        <label class="accuracyl" for="accuracy">GPS accuracy:</label>
+	                    {% if source['feature'] in importfiles.keys() %}
+                            {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
+                                <input type="number" step="1" min={{importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"]}} max="100" value={{importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"]+1}} id="accuracy" name="accuracy"/>
+                            {% else %}
+                                <input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
+                            {% endif %}
+                        {% else %}
+                            <input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
+                        {% endif %}
+	                    <input class="importbtn" type="submit" value="Import">
+                    </form>
+            </td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+    <tr class="tabbotom">
+        <td><img class="uploadbtn" onclick="window.location.href='#importform'" src="{{ url_for('static', filename='images/importfileicon.svg')}}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+</table>
+
+
+<a href="#x" class="overlay" id="addform"></a>
+<form class="modal" name="db1" method="POST" action="/importmanager/adddevice">
+    <input type="hidden" name="filename" value={{filename}}>
+    <label class="devname">New device name:</label>
+    <input class="devname" type="text" name="devicename">
+    <input name="submit" class="addbtn" type="submit" value="Add device" />
+</form>
+
+<a href="#x" class="overlay" id="importform"></a>
+<form class="modal" id="importform" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" id="file" class="input-file">
+    <input class="btn uploadbtn" type="submit" value="Upload" id="upload-button">
+</form>
+
+</body>
+</html>

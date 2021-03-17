@@ -1,0 +1,187 @@
+.alert-info {
+  background-color:  rgba(210, 210, 210,.8);
+  border-color: #bce8f1;
+  border-radius: 10px;
+  position: relative;
+  top: 65px;
+  width: 90%;
+  left: 5%;
+}
+.infocont{
+  padding: 20px 30px;
+}
+.info{
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  font-size: 14px;
+}
+.error{
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  font-size: 14px;
+  color: red;
+}
+
+table {
+font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+font-size: 14px;
+border-radius: 10px;
+border-spacing: 0;
+position: relative;
+top: 70px;
+width: 90%;
+left: 5%;
+}
+th {
+background: rgba(210, 210, 210,.8);
+padding: 10px 20px;
+}
+th, td {
+border-style: solid;
+border-width: 0 1px 1px 0;
+border-color: white;
+}
+
+th:first-child, td:first-child {
+text-align: left;
+}
+th:first-child {
+border-top-left-radius: 10px;
+}
+th:last-child {
+border-top-right-radius: 10px;
+border-right: none;
+}
+td {
+padding: 10px 20px;
+position: relative;
+}
+tr:last-child td:first-child {
+border-radius: 0 0 0 10px;
+}
+tr:last-child td:last-child {
+border-radius: 0 0 10px 0;
+}
+tr td:last-child {
+border-right: none;
+}
+tr{
+background: rgba(210, 210, 210,.5);
+}
+.tabbotom{
+background: rgba(210, 210, 210,.8);
+}
+
+input, select, .selectdev, .importbtn {
+	height: 28px;
+	font-size: 14px;
+}
+input[name="adddevice"]{
+width: 28px;
+}
+.importbtn {
+    margin-top: 5px;
+    width: 136px;
+}
+input[type="number"]{
+width: 30px;
+}
+
+.selectdev {
+    margin-top: 5px;
+    width: 173px;
+}
+
+
+select[name="device"] {
+width: 140px;
+}
+
+.uploadbtn{
+  height: 25px;
+  left: 10px;
+  opacity: 0.7;
+}
+.accuracyl, input[name="accuracy"]{
+display: inline;
+}
+
+
+form.modal {
+    overflow: hidden;
+    margin: 0 auto;
+    padding: 30px 30px 30px 30px;
+    min-width: 320px;
+    max-width: 520px;
+    width: 100%;
+    border: 1px solid rgba(120,120,120,.7);
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    background: rgba(210, 210, 210, 0.9);
+    -webkit-background-clip: padding-box;
+    -moz-background-clip: padding;
+    background-clip: padding-box;
+    -webkit-box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    -moz-box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    box-shadow: 0 0 13px 3px rgba(0,0,0,.5);
+    font-size: 18px;
+}
+
+.overlay {
+top: 0;
+right: 0;
+bottom: 0;
+left: 0;
+z-index: 10000;
+visibility: hidden;
+
+background-color: rgba(0, 0, 0, 0.8);
+opacity: 0;
+position: fixed;
+
+-webkit-transition: opacity .5s;
+-moz-transition: opacity .5s;
+-ms-transition: opacity .5s;
+-o-transition: opacity .5s;
+transition: opacity .5s;
+}
+
+.overlay:target {
+visibility: visible;
+opacity: 1;
+}
+
+.modal {
+ top: 0;
+ right: 0;
+ left: 0;
+ width: 50%;
+ z-index: 10001;
+
+ opacity: 0;
+ display: block;
+ visibility: hidden;
+ position: absolute;
+
+  -webkit-transition: opacity 500ms ease-in;
+  -moz-transition: opacity 500ms ease-in;
+  transition: opacity 500ms ease-in;
+}
+
+.overlay:target+.modal{
+top: 25%;
+visibility: visible;
+opacity: 1;
+}
+
+select[name="device"], input[name="adddevice"], .devname {
+	display: inline;
+}
+
+
+
+
+
+.importform{
+position: relative;
+top: 400px;
+}

@@ -7,10 +7,11 @@
 </head>
 
 <nav class="top-menu">
-  <a class="navbar-logo" href=""><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
+  <a class="navbar-logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
   <ul class="menu-main">
     <li><a href="{{ url_for('index') }}">Map</a></li>
     <li><a href="{{ url_for('dbmanager') }}">Database manager</a></li>
+    <li><a href="{{ url_for('importmanager') }}">Import manager</a></li>
   </ul>
 </nav>
 
@@ -54,13 +55,6 @@
         {% endfor %}
             <tr class="tabbotom"><td><img class="addbtn" onclick="window.location.href='#addform'" src="{{ url_for('static', filename='images/adddatabaseicon.svg')}}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 </table>
-
-<form class="importform" id="importform" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" target="_blank">
-    <input type="file" name="file" id="file" class="input-file">
-    <input class="btn uploadbtn" type="submit" value="Upload" id="upload-button">
-</form>
-
-
 
 {% for db in dblist %}
 <a href="#x" class="overlay" id="propform{{db['id']}}"></a>

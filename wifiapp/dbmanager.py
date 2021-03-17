@@ -35,7 +35,14 @@ def createdb(dbtype, dbname, dbdata):
                           apid INTEGER, 
                           ssid VARCHAR(64), 
                           capabilities VARCHAR(120), 
-                          time DATETIME)""")
+                          time DATETIME)""",
+                  """CREATE TABLE importfiles (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                          filefeature INTEGER,
+                          filesize INTEGER, 
+                          filetype VARCHAR(6),
+                          importaccuracy INTEGER,
+                 	      importtime DATETIME)""")
 
 
     createmysql = ("""CREATE TABLE ap (
@@ -71,7 +78,16 @@ def createdb(dbtype, dbname, dbdata):
 	                    frequency INTEGER, 
 	                    capabilities VARCHAR(120), 
                    	    time DATETIME, 
-                   	    PRIMARY KEY (id))""")
+                   	    PRIMARY KEY (id))""",
+                 """CREATE TABLE importfiles (
+                        id INTEGER NOT NULL AUTO_INCREMENT, 
+                        filefeature INTEGER,
+                        filesize INTEGER, 
+                        filetype VARCHAR(6),
+                        importaccuracy INTEGER,
+                 	    importtime DATETIME, 
+                        PRIMARY KEY (id))"""
+                   )
 
     if dbexsist(dbtype=dbtype, dbname=dbname, dbhost=dbdata['dbhost'], dbuser=dbdata['dbuser'], dbpassword=dbdata['dbpassword']):
         if dbtype == "sqlite":
@@ -173,11 +189,12 @@ def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
     """Function for checking the correctness of database tables and columns"""
     tables = []
     columns = []
-    reqtables = {'ap', 'device', 'location', 'apchange'}
+    reqtables = {'ap', 'device', 'location', 'apchange', 'importfiles'}
     reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor'},
                  'device':{'id', 'devicename'},
                  'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'},
-                 'apchange':{'id', 'apid', 'ssid', 'capabilities'}}
+                 'apchange':{'id', 'apid', 'ssid', 'capabilities'},
+                 'importfiles':{'id', 'filefeature', 'filesize', 'filetype', 'importaccuracy', 'importtime'}}
     if dbtype == "sqlite":
         conn = sqlite3.connect('wifiapp/localdb/' + dbname)
         cursor = conn.cursor()

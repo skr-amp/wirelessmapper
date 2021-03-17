@@ -3,6 +3,8 @@ import sqlite3
 
 class Config(object):
     APP_ROOT = os.path.abspath(os.path.dirname(__file__))
+    UPLOAD_FOLDER = os.path.join(APP_ROOT, 'upload')
+    ALLOWED_EXTENSIONS = set(['csv', 'sqlite', 'gz'])
 
     conn = sqlite3.connect('appdb.db')
     cur = conn.cursor()

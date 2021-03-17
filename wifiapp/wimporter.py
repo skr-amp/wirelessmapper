@@ -1,5 +1,5 @@
 import csv
-import time
+import time, datetime
 import os
 import sqlite3
 import pymysql
@@ -8,6 +8,7 @@ import pathlib
 from collections import Counter
 from wifiapp import app
 from wifiapp.macvendor import GetVendor
+from flask import flash
 
 
 def check_file(filename):
@@ -16,6 +17,7 @@ def check_file(filename):
     target = os.path.join(app.config['APP_ROOT'], 'upload')
     path = os.path.join(target, filename)
     extension = pathlib.Path(path).suffixes
+    fileinfo["filesize"] = os.path.getsize(path)
 
     # Check extension
     if extension[0] == ".csv":
@@ -54,25 +56,41 @@ def check_file(filename):
         conn.close()
 
     # Get info
+    feature =0
     if fileinfo["app"] ==  "WigleWifi":
         if fileinfo["type"] == "csv":
             fileinfo["version"] = firststr[0]
             fileinfo["device"] = firststr[2][6:]
             next(csv_data)
-            firsttime = next(csv_data)[3]
-            loc = 0
+            fileinfo["firsttime"] = next(csv_data)[3]
+            loc = 1
+            networks = set()
+            feature = int(datetime.datetime.strptime(fileinfo["firsttime"], "%Y-%m-%d %H:%M:%S").timestamp())
             for line in csv_data:
-                endtime = line[3]
-                if line[10] == "WIFI": loc += 1
-            fileinfo["time"] = firsttime + " - " + endtime
+                lasttime = line[3]
+                if line[10] == "WIFI":
+                    loc += 1
+                    networks.add(line[0])
+            feature += int(datetime.datetime.strptime(lasttime, "%Y-%m-%d %H:%M:%S").timestamp())
+            fileinfo["lasttime"] = lasttime
+            fileinfo["network"] = len(networks)
             fileinfo["location"] = loc
+            fileinfo["feature"] = feature
         elif fileinfo["type"] == "sqlite":
+            fileinfo["device"] = None
             conn = sqlite3.connect(path)
             cursor = conn.cursor()
+            cursor.execute("SELECT datetime(MIN(time)/1000, 'unixepoch', 'localtime') FROM location")
+            fileinfo["firsttime"] = cursor.fetchone()[0]
+            cursor.execute("SELECT datetime(MAX(time)/1000, 'unixepoch', 'localtime') FROM location")
+            fileinfo["lasttime"] = cursor.fetchone()[0]
             cursor.execute('SELECT COUNT(*) FROM network WHERE type="W"')
             fileinfo["network"] = cursor.fetchone()[0]
             cursor.execute('SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W"')
             fileinfo["location"] = cursor.fetchone()[0]
+            for time in cursor.execute("SELECT time FROM location LIMIT 10"):
+                feature += int(time[0]/1000)
+            fileinfo["feature"] = feature
             conn.close()
     #elif fileinfo["app"] ==  "Kismet":
 
@@ -332,6 +350,7 @@ def add_loc_in_db(apid, locations):
             locindb.add((loc[0], loc[1], loc[2], loc[3], loc[4], loc[5], loc[6]))
         addloc = list(locations - locindb)
         locaddcount = len(addloc)
+        if locaddcount ==0: return locaddcount
         addloclist = []
         for loc in addloc:
             loc = list(loc)
@@ -385,3 +404,114 @@ def curent_db_info_update():
     conn.commit()
     conn.close()
 
+def add_file_to_appdb(filename):
+    """"""
+    uploadtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    fileinfo = check_file(filename)
+    conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM importsource WHERE feature=?", (fileinfo["feature"],))
+    sourceid = cursor.fetchone()
+    if not sourceid:
+        cursor.execute("INSERT INTO importsource ('feature', 'type', 'app', 'firsttime', 'lasttime', 'device') VALUES(?, ?, ?, ?, ?, ?)",
+                       (fileinfo['feature'], fileinfo['type'], fileinfo['app'], fileinfo['firsttime'], fileinfo['firsttime'], fileinfo['device']))
+        conn.commit()
+        cursor.execute("SELECT LAST_INSERT_ROWID()")
+        sourceid = cursor.fetchone()
+    if fileinfo["type"] == "csv":
+        cursor.execute("SELECT filename, uploadtime FROM importfiles WHERE sourceid=?", (sourceid[0],))
+        fileindb = cursor.fetchone()
+        if fileindb:
+            flash("The file with this data was uploaded earlier on " + fileindb[1] + " with the name " + fileindb[0], "error")
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            conn.close()
+            return False
+        else:
+            cursor.execute("INSERT INTO importfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                           (sourceid[0], filename, fileinfo["filesize"],  uploadtime, fileinfo["firsttime"], fileinfo["lasttime"], fileinfo["network"], fileinfo["location"],))
+            conn.commit()
+            conn.close()
+            return True
+    elif fileinfo["type"] == "sqlite":
+        lasttimeindb = datetime.datetime.strptime(fileinfo["firsttime"], "%Y-%m-%d %H:%M:%S")
+        cursor.execute("SELECT filename, uploadtime, lasttime FROM importfiles WHERE sourceid=?", (sourceid[0],))
+        for fileindb in cursor.fetchall():
+            if fileinfo["lasttime"] == fileindb[2]:
+                flash("The file with this data was uploaded earlier on " + fileindb[1] + " with the name " + fileindb[0], "error")
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                conn.close()
+                return False
+            fileindblasttime = datetime.datetime.strptime(fileindb[2], "%Y-%m-%d %H:%M:%S")
+            if lasttimeindb < fileindblasttime: lasttimeindb = fileindblasttime
+        if datetime.datetime.strptime(fileinfo["lasttime"], "%Y-%m-%d %H:%M:%S") > lasttimeindb:
+            cursor.execute(
+                "INSERT INTO importfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                (sourceid[0], filename, fileinfo["filesize"], uploadtime, fileinfo["firsttime"], fileinfo["lasttime"],
+                 fileinfo["network"], fileinfo["location"],))
+            conn.commit()
+            conn.close()
+            return True
+        else:
+            flash("A later version of the Wigle database backup file was previously downloaded", "error")
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            conn.close()
+            return False
+
+def get_source():
+    """"""
+    conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute("SELECT importsource.feature, MAX(importfiles.uploadtime), importsource.type, importsource.app, importsource.device FROM importsource JOIN importfiles ON importsource.id = importfiles.sourceid GROUP BY importsource.feature ORDER BY MAX(importfiles.uploadtime) DESC")
+    sources = []
+    for source in cursor.fetchall():
+        sources.append({"feature": source[0], "uploadtime": source[1], "type": source[2], "app": source[3], "device": source[4]})
+    conn.close()
+    return sources
+
+def get_uploadfiles():
+    """"""
+    conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute("SELECT feature, filename, filesize, importfiles.firsttime, importfiles.lasttime, numberap, numberloc, uploadtime FROM importfiles JOIN importsource ON importfiles.sourceid = importsource.id")
+    files = {}
+    for file in cursor.fetchall():
+        if file[0] in files.keys():
+            files[file[0]].append({"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7]})
+        else:
+            files[file[0]] = [{"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7]}]
+    conn.close()
+    return files
+
+def get_importfiles():
+    """"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT filefeature, filesize, filetype, MAX(importaccuracy), importtime FROM importfiles GROUP BY filefeature, filesize")
+        files = {}
+        for file in cursor.fetchall():
+            if file[0] in files.keys():
+                files[file[0]][file[1]] = {"filetype": file[2], "accuracy": file[3], "importtime": file[4]}
+            else:
+                files[file[0]] = {file[1]:{"filetype": file[2], "accuracy": file[3], "importtime": file[4]}}
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+    return files
+
+def get_device_id(devicename):
+    """"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM device WHERE devicename=?", (devicename, ))
+        res = cursor.fetchone()
+        if res:
+            id = res[0]
+        else:
+            cursor.execute("INSERT INTO device ('devicename') VALUES(?)", (devicename, ))
+            conn.commit()
+            cursor.execute("SELECT LAST_INSERT_ROWID()")
+            id = cursor.fetchone()[0]
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+    return id

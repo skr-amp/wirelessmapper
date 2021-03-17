@@ -16,7 +16,6 @@
 				var socket = io.connect('localhost:5000');
 
 				socket.on('message', function(msg) {
-					console.log(msg);
 					if (msg["msg"]==='importinfo') {
 						$("#messages").append('<li>'+msg["info"]+'</li>');
 						$("#progressbar").attr("value", parseInt(msg["checkloc"], 10))

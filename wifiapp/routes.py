@@ -1,10 +1,11 @@
 import os
+import sqlite3
 from wifiapp import app, socketio
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from threading import Thread
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
-from wifiapp.wimporter import check_file, get_devices, add_device_db, wigle_csv_import, wigle_sqlite_import
+from wifiapp.wimporter import check_file, get_devices, add_device_db, wigle_csv_import, wigle_sqlite_import, add_file_to_appdb, get_source, get_uploadfiles, get_importfiles, get_device_id
 
 
 @app.route('/')
@@ -82,48 +83,65 @@ def deletedb():
     return redirect(url_for('dbmanager'))
 
 
+@app.route('/impormanager')
+def importmanager():
+    sources = get_source()
+    uploadfiles = get_uploadfiles()
+    importfiles = get_importfiles()
+    return render_template('importmanager.html', sources=sources, uploadfiles=uploadfiles, importfiles=importfiles, devices=get_devices())
+
+@app.route('/importmanager/adddevice', methods=['POST'])
+def adddevice():
+    add_device_db(request.form.get('devicename'))
+    return redirect(url_for('importmanager'))
+
+@app.route('/importmanager/setsourcedevice', methods=['POST'])
+def setsourcedevice():
+    source = request.form.get('source')
+    devicename = request.form.get('device')
+    if devicename:
+        conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+        cursor = conn.cursor()
+        cursor.execute("UPDATE importsource SET device=? WHERE feature=?", (devicename, source))
+        conn.commit()
+        conn.close()
+    return redirect(url_for('importmanager'))
+
 @app.route('/upload', methods=['POST'])
 def upload():
-    target = os.path.join(app.config['APP_ROOT'], 'upload/')
-    if not os.path.isdir(target):
-        os.mkdir(target)
+    if not os.path.isdir(app.config['UPLOAD_FOLDER']):
+        os.mkdir(app.config['UPLOAD_FOLDER'])
     file = request.files["file"]
     if file:
         filename = file.filename
-        extension = filename.rsplit('.', 1)[1]
-        destination = "/".join([target, filename])
-        if extension == "csv":
-            file.save(destination)
-            return redirect(url_for('importer', filename=filename))
-        elif extension == "gz" and filename.rsplit('.', 2)[1] == "csv":
-            file.save(destination)
-            return redirect(url_for('importer', filename=filename))
-        elif extension == "sqlite":
-            file.save(destination)
-            return redirect(url_for('importer', filename=filename))
-
-
-@app.route('/importer', methods=['GET'])
-def importer():
-    filename = request.args.get('filename')
-    fileinfo = check_file(filename)
-    if fileinfo["type"] == "csv" and fileinfo["app"] == "WigleWifi":
-        return render_template("wimporter.html", filename=filename, fileinfo=fileinfo, devices=get_devices())
-    elif fileinfo["type"] == "sqlite" and fileinfo["app"] == "WigleWifi":
-        return render_template("wimporter.html", filename=filename, fileinfo=fileinfo, devices=get_devices())
-
-
-@app.route('/importer/adddevice', methods=['POST'])
-def adddevice():
-    add_device_db(request.form.get('devicename'))
-    return redirect(url_for('importer', filename=request.form.get('filename')))
-
+        destination = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if '.' in filename:
+            if filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']:
+                filelist = os.listdir(app.config['UPLOAD_FOLDER'])
+                if filename in filelist:
+                    flash("A file named " + filename + " has already been uploaded", "error")
+                    return redirect(url_for('importmanager'))
+                file.save(destination)
+                if add_file_to_appdb(filename):
+                    flash('File ' + filename + ' uploaded', 'info')
+                else:
+                    flash("File not uploaded", "error")
+            else:
+                flash("File not uploaded", "error")
+        else:
+            flash("File not uploaded", "error")
+    return redirect(url_for('importmanager'))
 
 @app.route('/wimport', methods=['POST'])
 def wimport():
     filename = request.form.get('filename')
     accuracy = request.form.get('accuracy')
-    deviceid = int(request.form.get('deviceid'))
+    device = request.form.get('device')
+    print(device)
+    if device == "None":
+        flash("Device not selected", "error")
+        return redirect(url_for('importmanager'))
+    deviceid = get_device_id(device)
     filetype = request.form.get('filetype')
     if filetype == "csv":
         Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
