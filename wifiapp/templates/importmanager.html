@@ -92,6 +92,7 @@
                         <input type="hidden" name="filename" value={{uploadfiles[source['feature']][i]["filename"]}}>
 	                    <input type="hidden" name="filetype" value={{source["type"]}}>
                         <input type="hidden" name="device" value="{{source['device']}}">
+                        <input type="hidden" name="feature" value="{{source['feature']}}">
                         <label class="accuracyl" for="accuracy">GPS accuracy:</label>
 	                    {% if source['feature'] in importfiles.keys() %}
                             {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}

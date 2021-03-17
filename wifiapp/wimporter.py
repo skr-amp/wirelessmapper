@@ -130,12 +130,13 @@ def add_device_db(device):
         conn.close()
     return True
 
-def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
+def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
     """imports data from a wigle csv file into the application database"""
     with app.app_context():
         target = os.path.join(app.config['APP_ROOT'], 'upload/')
         path = "/".join([target, filename])
         extension = filename.rsplit('.', 1)[1]
+        filesize = os.path.getsize(path)
         if extension == "gz":
             f_csv = gzip.open(path, 'rt', encoding="latin-1")
         elif extension == "csv":
@@ -198,6 +199,14 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid):
         msg = {"msg": "resultinfo"}
         msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
         socketio.send(msg, broadcast=True)
+        importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+            conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO importfiles ('filefeature', 'filesize', 'filetype', 'importaccuracy', 'importtime') VALUES(?, ?, ?, ?, ?)", (feature, filesize, 'csv', accuracy, importtime))
+            conn.commit()
+            conn.close()
+        # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
         curent_db_info_update()
 
 def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):

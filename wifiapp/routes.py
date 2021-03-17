@@ -137,14 +137,14 @@ def wimport():
     filename = request.form.get('filename')
     accuracy = request.form.get('accuracy')
     device = request.form.get('device')
-    print(device)
+    feature = request.form.get('feature')
     if device == "None":
         flash("Device not selected", "error")
         return redirect(url_for('importmanager'))
     deviceid = get_device_id(device)
     filetype = request.form.get('filetype')
     if filetype == "csv":
-        Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid)).start()
+        Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     elif filetype == "sqlite":
         Thread(target=wigle_sqlite_import, args=(app, socketio, filename, accuracy, deviceid)).start()
     return render_template('import.html', filename=filename, filetype=filetype, accuracy=accuracy)
