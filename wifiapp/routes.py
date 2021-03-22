@@ -146,5 +146,5 @@ def wimport():
     if filetype == "csv":
         Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     elif filetype == "sqlite":
-        Thread(target=wigle_sqlite_import, args=(app, socketio, filename, accuracy, deviceid)).start()
+        Thread(target=wigle_sqlite_import, args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     return render_template('import.html', filename=filename, filetype=filetype, accuracy=accuracy)

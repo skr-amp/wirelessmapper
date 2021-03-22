@@ -80,13 +80,13 @@ def check_file(filename):
             fileinfo["device"] = None
             conn = sqlite3.connect(path)
             cursor = conn.cursor()
-            cursor.execute("SELECT datetime(MIN(time)/1000, 'unixepoch', 'localtime') FROM location")
+            cursor.execute("SELECT datetime(MIN(time)/1000, 'unixepoch', 'localtime') FROM location WHERE time>0")
             fileinfo["firsttime"] = cursor.fetchone()[0]
             cursor.execute("SELECT datetime(MAX(time)/1000, 'unixepoch', 'localtime') FROM location")
             fileinfo["lasttime"] = cursor.fetchone()[0]
             cursor.execute('SELECT COUNT(*) FROM network WHERE type="W"')
             fileinfo["network"] = cursor.fetchone()[0]
-            cursor.execute('SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W"')
+            cursor.execute('SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W" and time>0')
             fileinfo["location"] = cursor.fetchone()[0]
             for time in cursor.execute("SELECT time FROM location LIMIT 10"):
                 feature += int(time[0]/1000)
@@ -160,6 +160,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
                 localtitude = int(float(line[7]) * 100)
                 locaccuracy = int(float(line[9]) * 100)
                 numberloc += 1
+                lasttime = loctime
                 if len(aplist) == 0 or not bssid in aplist.keys():
                     # 0-lat 1-lon 2-altitude 3-accuracy 4-level 5-time 6-deviceid
                     aplist[bssid] = {"ssid":ssid, "capabilities":capabilities, "frequency":channel_to_freq(channel),
@@ -199,6 +200,11 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
         msg = {"msg": "resultinfo"}
         msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
         socketio.send(msg, broadcast=True)
+        conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+        cursor = conn.cursor()
+        cursor.execute("UPDATE importsource SET lasttime = ?  WHERE feature = ?", (lasttime, feature))
+        conn.commit()
+        conn.close()
         importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if app.config['CURRENT_DB_TYPE'] == 'sqlite':
             conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
@@ -209,25 +215,27 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
         # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
         curent_db_info_update()
 
-def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):
+def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     """"""
     time.sleep(1)
+    importfirsttime = get_import_firsttime(feature, accuracy)
     target = os.path.join(app.config['APP_ROOT'], 'upload')
     path = os.path.join(target, filename)
+    filesize = os.path.getsize(path)
     importconn = sqlite3.connect(path)
     importcursor = importconn.cursor()
     importcursor.execute(
-        'SELECT COUNT(DISTINCT network.bssid) FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>0 AND location.accuracy<?',
-        (accuracy,))
+        'SELECT COUNT(DISTINCT network.bssid) FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?',
+        (importfirsttime, accuracy))
     numberap = importcursor.fetchone()[0]
     importcursor.execute(
-        'SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W" AND location.time>0 AND location.accuracy<?', (accuracy,))
+        'SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?', (importfirsttime, accuracy))
     numberloc = importcursor.fetchone()[0]
     socketio.send({"msg": "number_of_loc_and_ap", "numberloc": numberloc, "numberap": numberap}, broadcast=True)
 
     importaplist = []
-    for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>0 AND location.accuracy<?',
-            (accuracy,)):
+    for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?',
+            (importfirsttime, accuracy)):
         importaplist.append({"bssid": ap[0], "ssid": ap[1], "frequency": ap[2], "capabilities": ap[3]})
 
     addedap = 0
@@ -238,7 +246,7 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):
         msg = {"msg": "importinfo"}
         if ap["bssid"] in apdblist.keys():
             if apdblist[ap["bssid"]]["count"] == 1:  # if the database already has only one access point with this bssid
-                importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=? AND location.time>0 AND location.accuracy<?", (ap["bssid"], accuracy))
+                importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=? AND location.time>? AND location.accuracy<?", (ap["bssid"], importfirsttime, accuracy))
                 locations = set((int(float(x[0]) * 1000000), int(float(x[1]) * 1000000), int(float(x[2]) * 100), int(float(x[3]) * 100), x[4], x[5], int(deviceid)) for x in importcursor.fetchall())
                 ap["location"] = locations
                 if apdblist[ap["bssid"]]["info"][0]["ssid"] != ap["ssid"] or apdblist[ap["bssid"]]["info"][0]["capabilities"] != ap["capabilities"]:
@@ -251,7 +259,7 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):
             elif apdblist[ap["bssid"]]["count"] > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
                 print("More than one access point with such bssid in the database: " + ap["bssid"])
         else:  # there are no access points with this bssid in the database
-            importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=? AND location.time>0 AND location.accuracy<?", (ap["bssid"], accuracy))
+            importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=? AND location.time>? AND location.accuracy<?", (ap["bssid"], importfirsttime, accuracy))
             locations = set((int(float(x[0]) * 1000000), int(float(x[1]) * 1000000), int(float(x[2]) * 100), int(float(x[3]) * 100), int(x[4]), x[5], int(deviceid)) for x in importcursor.fetchall())
             id = add_ap_in_db({"bssid": ap["bssid"], "ssid": ap["ssid"], "capabilities": ap["capabilities"], "frequency": ap["frequency"]})
             addedap += 1
@@ -268,6 +276,16 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid):
     socketio.send(msg, broadcast=True)
     curent_db_info_update()
     importconn.close()
+    importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO importfiles ('filefeature', 'filesize', 'filetype', 'importaccuracy', 'importtime') VALUES(?, ?, ?, ?, ?)",
+            (feature, filesize, 'sqlite', accuracy, importtime))
+        conn.commit()
+        conn.close()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
 
 def ap_change(apindb, newap):
     """records ssid, capabilities, and time from imported data other than stored in the application database."""
@@ -470,10 +488,10 @@ def get_source():
     """"""
     conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute("SELECT importsource.feature, MAX(importfiles.uploadtime), importsource.type, importsource.app, importsource.device FROM importsource JOIN importfiles ON importsource.id = importfiles.sourceid GROUP BY importsource.feature ORDER BY MAX(importfiles.uploadtime) DESC")
+    cursor.execute("SELECT importsource.feature, importsource.type, importsource.app, importsource.device FROM importsource JOIN importfiles ON importsource.id = importfiles.sourceid GROUP BY importsource.feature ORDER BY MAX(importfiles.uploadtime) DESC")
     sources = []
     for source in cursor.fetchall():
-        sources.append({"feature": source[0], "uploadtime": source[1], "type": source[2], "app": source[3], "device": source[4]})
+        sources.append({"feature": source[0], "type": source[1], "app": source[2], "device": source[3]})
     conn.close()
     return sources
 
@@ -485,9 +503,9 @@ def get_uploadfiles():
     files = {}
     for file in cursor.fetchall():
         if file[0] in files.keys():
-            files[file[0]].append({"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7]})
+            files[file[0]].append({"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7], "minaccuracy": get_min_accuracy(file[0], file[2])})
         else:
-            files[file[0]] = [{"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7]}]
+            files[file[0]] = [{"filename": file[1], "filesize": file[2], "firsttime": file[3], "lasttime": file[4], "numberap": file[5], "numberloc": file[6], "uploadtime": file[7], "minaccuracy": get_min_accuracy(file[0], file[2])}]
     conn.close()
     return files
 
@@ -496,13 +514,13 @@ def get_importfiles():
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
-        cursor.execute("SELECT filefeature, filesize, filetype, MAX(importaccuracy), importtime FROM importfiles GROUP BY filefeature, filesize")
+        cursor.execute("SELECT filefeature, filesize, MAX(importaccuracy), importtime FROM importfiles GROUP BY filefeature, filesize")
         files = {}
         for file in cursor.fetchall():
             if file[0] in files.keys():
-                files[file[0]][file[1]] = {"filetype": file[2], "accuracy": file[3], "importtime": file[4]}
+                files[file[0]][file[1]] = {"accuracy": file[2], "importtime": file[3]}
             else:
-                files[file[0]] = {file[1]:{"filetype": file[2], "accuracy": file[3], "importtime": file[4]}}
+                files[file[0]] = {file[1]:{"accuracy": file[2], "importtime": file[3]}}
         conn.close()
     # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return files
@@ -524,3 +542,21 @@ def get_device_id(devicename):
         conn.close()
     # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return id
+
+def get_min_accuracy(feature, filesize):
+    """"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(importaccuracy) FROM importfiles WHERE filefeature=? AND filesize>=?", (feature, filesize))
+        accuracy = cursor.fetchone()[0]
+        conn.close()
+        if accuracy:
+            return accuracy
+        else:
+            return 0
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+
+def get_import_firsttime(feature, accuracy):
+    """"""
+    return None

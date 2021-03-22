@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='navmenu.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='importmanager.css') }}" />
 </head>
-
+<body>
 <nav class="top-menu">
   <a class="navbar-logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
   <ul class="menu-main">
@@ -57,7 +57,7 @@
                         <input type="hidden" name="source" value={{source['feature']}}>
                         <select name="device">
 	                    {% for device in devices.keys() %}
-		                    <option value="{{device}}"}>{{device}}</option>
+		                    <option value="{{device}}">{{device}}</option>
 	                    {% endfor %}
 	                    </select>
 	                    <input type="button" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
@@ -96,7 +96,7 @@
                         <label class="accuracyl" for="accuracy">GPS accuracy:</label>
 	                    {% if source['feature'] in importfiles.keys() %}
                             {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
-                                <input type="number" step="1" min={{importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"]}} max="100" value={{importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"]+1}} id="accuracy" name="accuracy"/>
+                                <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
                             {% else %}
                                 <input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
                             {% endif %}
