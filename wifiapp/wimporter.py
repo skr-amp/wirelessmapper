@@ -218,10 +218,11 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
 def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     """"""
     time.sleep(1)
-    importfirsttime = get_import_firsttime(feature, accuracy)
     target = os.path.join(app.config['APP_ROOT'], 'upload')
     path = os.path.join(target, filename)
     filesize = os.path.getsize(path)
+    importfirsttime = get_import_firsttime(feature, accuracy)
+    print("Firsttime: " + str(importfirsttime))
     importconn = sqlite3.connect(path)
     importcursor = importconn.cursor()
     importcursor.execute(
@@ -460,7 +461,6 @@ def add_file_to_appdb(filename):
             conn.close()
             return True
     elif fileinfo["type"] == "sqlite":
-        lasttimeindb = datetime.datetime.strptime(fileinfo["firsttime"], "%Y-%m-%d %H:%M:%S")
         cursor.execute("SELECT filename, uploadtime, lasttime FROM importfiles WHERE sourceid=?", (sourceid[0],))
         for fileindb in cursor.fetchall():
             if fileinfo["lasttime"] == fileindb[2]:
@@ -468,21 +468,14 @@ def add_file_to_appdb(filename):
                 os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 conn.close()
                 return False
-            fileindblasttime = datetime.datetime.strptime(fileindb[2], "%Y-%m-%d %H:%M:%S")
-            if lasttimeindb < fileindblasttime: lasttimeindb = fileindblasttime
-        if datetime.datetime.strptime(fileinfo["lasttime"], "%Y-%m-%d %H:%M:%S") > lasttimeindb:
-            cursor.execute(
+
+        cursor.execute(
                 "INSERT INTO importfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
                 (sourceid[0], filename, fileinfo["filesize"], uploadtime, fileinfo["firsttime"], fileinfo["lasttime"],
                  fileinfo["network"], fileinfo["location"],))
-            conn.commit()
-            conn.close()
-            return True
-        else:
-            flash("A later version of the Wigle database backup file was previously downloaded", "error")
-            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            conn.close()
-            return False
+        conn.commit()
+        conn.close()
+        return True
 
 def get_source():
     """"""
@@ -499,7 +492,7 @@ def get_uploadfiles():
     """"""
     conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute("SELECT feature, filename, filesize, importfiles.firsttime, importfiles.lasttime, numberap, numberloc, uploadtime FROM importfiles JOIN importsource ON importfiles.sourceid = importsource.id")
+    cursor.execute("SELECT feature, filename, filesize, importfiles.firsttime, importfiles.lasttime, numberap, numberloc, uploadtime FROM importfiles JOIN importsource ON importfiles.sourceid = importsource.id ORDER BY numberloc")
     files = {}
     for file in cursor.fetchall():
         if file[0] in files.keys():
@@ -559,4 +552,20 @@ def get_min_accuracy(feature, filesize):
 
 def get_import_firsttime(feature, accuracy):
     """"""
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT filesize, MAX(importaccuracy) FROM importfiles WHERE filefeature=? AND importaccuracy>=? GROUP BY filesize ORDER BY filesize DESC LIMIT 1", (feature, accuracy))
+        filesize = cursor.fetchone()
+        conn.close()
+        if filesize:
+            conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+            cursor = conn.cursor()
+            cursor.execute("SELECT strftime('%s', importfiles.lasttime, 'utc') FROM importfiles LEFT JOIN importsource ON importfiles.sourceid=importsource.id WHERE importsource.feature=? AND importfiles.filesize=?", (feature, filesize[0]))
+            lasttime = int(cursor.fetchone()[0])*1000
+            conn.close()
+            return lasttime
+        else:
+            return 0
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
     return None
