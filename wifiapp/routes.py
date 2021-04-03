@@ -88,6 +88,11 @@ def importmanager():
     sources = get_source()
     uploadfiles = get_uploadfiles()
     importfiles = get_importfiles()
+    print(sources)
+    print("uploadfiles")
+    print(uploadfiles)
+    print("importfiles")
+    print(importfiles)
     return render_template('importmanager.html', sources=sources, uploadfiles=uploadfiles, importfiles=importfiles, devices=get_devices())
 
 @app.route('/importmanager/adddevice', methods=['POST'])

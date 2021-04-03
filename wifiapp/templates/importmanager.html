@@ -77,7 +77,11 @@
             <td>{{uploadfiles[source['feature']][i]["uploadtime"]}}</td>
             <td>{% if source['feature'] in importfiles.keys() %}
                     {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
-                        File imported {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] }} with accuracy {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"] }}
+                        {% if not importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] == None %}
+                            File imported {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] }} with accuracy {{ importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["accuracy"] }}
+                        {% else %}
+                            In progress
+                        {% endif %}
                     {% else %}
                         File not imported
                     {% endif %}
@@ -96,14 +100,22 @@
                         <label class="accuracyl" for="accuracy">GPS accuracy:</label>
 	                    {% if source['feature'] in importfiles.keys() %}
                             {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
-                                <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
+                                {% if not importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] == None %}
+                                    <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
+                                    <input class="importbtn" type="submit" value="Import">
+                                {% else %}
+                                    {{uploadfiles[source['feature']][i]["minaccuracy"]}}
+                                    <input type="hidden" name="accuracy" value={{uploadfiles[source['feature']][i]["minaccuracy"]}}>
+                                    <input class="importbtn" type="submit" value="Continue importing">
+                                {% endif %}
                             {% else %}
-                                <input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
+                                <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
+                                <input class="importbtn" type="submit" value="Import">
                             {% endif %}
                         {% else %}
                             <input type="number" step="1" min="1" max="100" value="4" id="accuracy" name="accuracy"/>
+                            <input class="importbtn" type="submit" value="Import">
                         {% endif %}
-	                    <input class="importbtn" type="submit" value="Import">
                     </form>
             </td>
         </tr>

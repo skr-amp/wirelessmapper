@@ -41,6 +41,8 @@ def createdb(dbtype, dbname, dbdata):
                           filefeature INTEGER,
                           filesize INTEGER, 
                           filetype VARCHAR(6),
+                          lastimportbssid VARCHAR(18),
+                          checkloc INTEGER,
                           importaccuracy INTEGER,
                  	      importtime DATETIME)""")
 
@@ -84,6 +86,8 @@ def createdb(dbtype, dbname, dbdata):
                         filefeature INTEGER,
                         filesize INTEGER, 
                         filetype VARCHAR(6),
+                        lastimportbssid VARCHAR(18),
+                        checkloc INTEGER,
                         importaccuracy INTEGER,
                  	    importtime DATETIME, 
                         PRIMARY KEY (id))"""
@@ -194,7 +198,7 @@ def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
                  'device':{'id', 'devicename'},
                  'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'},
                  'apchange':{'id', 'apid', 'ssid', 'capabilities'},
-                 'importfiles':{'id', 'filefeature', 'filesize', 'filetype', 'importaccuracy', 'importtime'}}
+                 'importfiles':{'id', 'filefeature', 'filesize', 'filetype', 'importaccuracy', 'lastimportbssid', 'checkloc', 'importtime'}}
     if dbtype == "sqlite":
         conn = sqlite3.connect('wifiapp/localdb/' + dbname)
         cursor = conn.cursor()

@@ -222,7 +222,23 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     path = os.path.join(target, filename)
     filesize = os.path.getsize(path)
     importfirsttime = get_import_firsttime(feature, accuracy)
-    print("Firsttime: " + str(importfirsttime))
+    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
+        curentdbconn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
+        curentdbcursor = curentdbconn.cursor()
+    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+    curentdbcursor.execute('SELECT lastimportbssid, checkloc FROM importfiles WHERE filefeature=? AND filesize=? AND importaccuracy=?',
+                           (feature, filesize, accuracy))
+    res=curentdbcursor.fetchone()
+    if res:
+        lastimportbssid = res[0]
+        checkloc = res[1]
+    else:
+        curentdbcursor.execute("INSERT INTO importfiles ('filefeature', 'filesize', 'filetype', 'importaccuracy') VALUES(?, ?, ?, ?)",
+            (feature, filesize, 'sqlite', accuracy))
+        curentdbconn.commit()
+        lastimportbssid = 0
+        checkloc = 0
+
     importconn = sqlite3.connect(path)
     importcursor = importconn.cursor()
     importcursor.execute(
@@ -235,13 +251,14 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     socketio.send({"msg": "number_of_loc_and_ap", "numberloc": numberloc, "numberap": numberap}, broadcast=True)
 
     importaplist = []
-    for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?',
-            (importfirsttime, accuracy)):
+    for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<? AND location.bssid>? ORDER BY network.bssid',
+            (importfirsttime, accuracy, lastimportbssid)):
         importaplist.append({"bssid": ap[0], "ssid": ap[1], "frequency": ap[2], "capabilities": ap[3]})
+    print(importaplist  [0])
+
 
     addedap = 0
     addedloc = 0
-    checkloc = 0
     apdblist = get_list_ap_in_db()
     for ap in importaplist:
         msg = {"msg": "importinfo"}
@@ -272,21 +289,21 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
         checkloc += len(locations)
         msg["checkloc"] = checkloc
         socketio.send(msg, broadcast=True)
+
+        curentdbcursor.execute("UPDATE importfiles SET lastimportbssid=?, checkloc=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
+                (ap["bssid"], checkloc, feature, filesize, accuracy))
+        curentdbconn.commit()
+
     msg = {"msg": "resultinfo"}
     msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
     socketio.send(msg, broadcast=True)
     curent_db_info_update()
     importconn.close()
     importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if app.config['CURRENT_DB_TYPE'] == 'sqlite':
-        conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO importfiles ('filefeature', 'filesize', 'filetype', 'importaccuracy', 'importtime') VALUES(?, ?, ?, ?, ?)",
-            (feature, filesize, 'sqlite', accuracy, importtime))
-        conn.commit()
-        conn.close()
-    # elif app.config['CURRENT_DB_TYPE'] == 'mysql':
+    curentdbcursor.execute("UPDATE importfiles SET importtime=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
+            (importtime, feature, filesize, accuracy))
+    curentdbconn.commit()
+    curentdbconn.close()
 
 def ap_change(apindb, newap):
     """records ssid, capabilities, and time from imported data other than stored in the application database."""
@@ -555,9 +572,10 @@ def get_import_firsttime(feature, accuracy):
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         conn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
         cursor = conn.cursor()
-        cursor.execute("SELECT filesize, MAX(importaccuracy) FROM importfiles WHERE filefeature=? AND importaccuracy>=? GROUP BY filesize ORDER BY filesize DESC LIMIT 1", (feature, accuracy))
+        cursor.execute("SELECT filesize, MAX(importaccuracy) FROM importfiles WHERE filefeature=? AND importaccuracy>=? AND importtime IS NOT NULL GROUP BY filesize ORDER BY filesize DESC LIMIT 1", (feature, accuracy))
         filesize = cursor.fetchone()
         conn.close()
+        print(filesize)
         if filesize:
             conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
             cursor = conn.cursor()
