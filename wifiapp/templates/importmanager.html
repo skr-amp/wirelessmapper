@@ -3,10 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <title>Import manager</title>
+    <script src="https:\\cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <script src="https:\\ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='navmenu.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='importmanager.css') }}" />
 </head>
 <body>
+<script type="text/javascript">
+			$(document).ready(function() {
+
+				var socket = io.connect('localhost:5000/importer');
+
+				socket.on('checkloc', function(filename, progress) {
+					$("#" + filename + "_progressbar").attr("value", parseInt(progress, 10));
+
+					$(".importbtn").prop("disabled", true);
+					$("input[type=number]").prop("disabled", true);
+					$(".accuracyl").css("color", "grey");
+
+					$("#" + filename + "_importform").hide();
+					$("#" + filename + "_progress").show();
+				});
+
+				socket.on('resultinfo', function(filename, resultmsg) {
+					location.reload(true);
+					/*
+					$("#" + filename + "_importform").show();
+					$("#" + filename + "_progress").hide();
+					$(".importbtn").prop("disabled", false);
+					$("input[type=number]").prop("disabled", false);
+					$(".accuracyl").css("color", "black");
+					*/
+				});
+
+                $(".stopbtn").on('click', function() {
+                    socket.emit("stopimport");
+                    console.log("click");
+                });
+			});
+</script>
 <nav class="top-menu">
   <a class="navbar-logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.svg')}}"></a>
   <ul class="menu-main">
@@ -90,6 +125,7 @@
                 {% endif %}
             </td>
             <td>
+                <div class="startimportform" id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_importform">
                 {% if source["app"] == "WigleWifi" %}
                     <form class="import" action="{{ url_for('wimport') }}" method="POST" target="_blank">
                 {% endif %}
@@ -97,14 +133,15 @@
 	                    <input type="hidden" name="filetype" value={{source["type"]}}>
                         <input type="hidden" name="device" value="{{source['device']}}">
                         <input type="hidden" name="feature" value="{{source['feature']}}">
-                        <label class="accuracyl" for="accuracy">GPS accuracy:</label>
+                        <label class="accuracyl" for="accuracy">GPS accuracy:
 	                    {% if source['feature'] in importfiles.keys() %}
                             {% if uploadfiles[source['feature']][i]["filesize"] in importfiles[source['feature']].keys() %}
                                 {% if not importfiles[source['feature']][uploadfiles[source['feature']][i]["filesize"]]["importtime"] == None %}
+                                    </label>
                                     <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
                                     <input class="importbtn" type="submit" value="Import">
                                 {% else %}
-                                    {{uploadfiles[source['feature']][i]["minaccuracy"]}}
+                                    {{uploadfiles[source['feature']][i]["minaccuracy"]}}</label>
                                     <input type="hidden" name="accuracy" value={{uploadfiles[source['feature']][i]["minaccuracy"]}}>
                                     <input class="importbtn" type="submit" value="Continue importing">
                                 {% endif %}
@@ -117,12 +154,18 @@
                             <input class="importbtn" type="submit" value="Import">
                         {% endif %}
                     </form>
+                </div>
+                <div class="progressform" id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progress">
+                    <label >GPS accuracy: {{uploadfiles[source['feature']][i]["minaccuracy"]}}</label>
+                    <progress id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progressbar" value="0" max="100"></progress>
+                    <button class="stopbtn">Stop Import</button>
+                </div>
             </td>
         </tr>
         {% endfor %}
     {% endfor %}
     <tr class="tabbotom">
-        <td><img class="uploadbtn" onclick="window.location.href='#importform'" src="{{ url_for('static', filename='images/importfileicon.svg')}}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td><img class="uploadbtn" onclick="window.location.href='#uploadform'" src="{{ url_for('static', filename='images/importfileicon.svg')}}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
     </tr>
 </table>
 
@@ -135,8 +178,8 @@
     <input name="submit" class="addbtn" type="submit" value="Add device" />
 </form>
 
-<a href="#x" class="overlay" id="importform"></a>
-<form class="modal" id="importform" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+<a href="#x" class="overlay" id="uploadform"></a>
+<form class="modal" id="uploadform" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
     <input type="file" name="file" id="file" class="input-file">
     <input class="btn uploadbtn" type="submit" value="Upload" id="upload-button">
 </form>

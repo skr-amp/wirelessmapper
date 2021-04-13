@@ -5,7 +5,7 @@ from flask import render_template, request, jsonify, redirect, url_for, flash
 from threading import Thread
 from wifiapp.getdbinfo import apmarkers, apinfo, locationinfo
 from wifiapp.dbmanager import dblist, setdb, editdbinfo, mysqlsrvexist, createdb, adddb, deldb, delfromappdb
-from wifiapp.wimporter import check_file, get_devices, add_device_db, wigle_csv_import, wigle_sqlite_import, add_file_to_appdb, get_source, get_uploadfiles, get_importfiles, get_device_id
+import wifiapp.wimporter
 
 
 @app.route('/')
@@ -85,20 +85,18 @@ def deletedb():
 
 @app.route('/impormanager')
 def importmanager():
-    sources = get_source()
-    uploadfiles = get_uploadfiles()
-    importfiles = get_importfiles()
-    print(sources)
-    print("uploadfiles")
-    print(uploadfiles)
-    print("importfiles")
-    print(importfiles)
-    return render_template('importmanager.html', sources=sources, uploadfiles=uploadfiles, importfiles=importfiles, devices=get_devices())
+    sources = wifiapp.wimporter.get_source()
+    uploadfiles = wifiapp.wimporter.get_uploadfiles()
+    importfiles = wifiapp.wimporter.get_importfiles()
+    return render_template('importmanager.html', sources=sources, uploadfiles=uploadfiles, importfiles=importfiles,
+                           devices=wifiapp.wimporter.get_devices(), importrun=wifiapp.wimporter.importrun)
+
 
 @app.route('/importmanager/adddevice', methods=['POST'])
 def adddevice():
-    add_device_db(request.form.get('devicename'))
+    wifiapp.wimporter.add_device_db(request.form.get('devicename'))
     return redirect(url_for('importmanager'))
+
 
 @app.route('/importmanager/setsourcedevice', methods=['POST'])
 def setsourcedevice():
@@ -111,6 +109,7 @@ def setsourcedevice():
         conn.commit()
         conn.close()
     return redirect(url_for('importmanager'))
+
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -127,7 +126,7 @@ def upload():
                     flash("A file named " + filename + " has already been uploaded", "error")
                     return redirect(url_for('importmanager'))
                 file.save(destination)
-                if add_file_to_appdb(filename):
+                if wifiapp.wimporter.add_file_to_appdb(filename):
                     flash('File ' + filename + ' uploaded', 'info')
                 else:
                     flash("File not uploaded", "error")
@@ -136,6 +135,7 @@ def upload():
         else:
             flash("File not uploaded", "error")
     return redirect(url_for('importmanager'))
+
 
 @app.route('/wimport', methods=['POST'])
 def wimport():
@@ -146,10 +146,19 @@ def wimport():
     if device == "None":
         flash("Device not selected", "error")
         return redirect(url_for('importmanager'))
-    deviceid = get_device_id(device)
+    deviceid = wifiapp.wimporter.get_device_id(device)
     filetype = request.form.get('filetype')
     if filetype == "csv":
-        Thread(target=wigle_csv_import, args=(app, socketio, filename, accuracy, deviceid, feature)).start()
+        Thread(target=wifiapp.wimporter.wigle_csv_import,
+               args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     elif filetype == "sqlite":
-        Thread(target=wigle_sqlite_import, args=(app, socketio, filename, accuracy, deviceid, feature)).start()
+        wifiapp.wimporter.importrun = True
+        Thread(target=wifiapp.wimporter.wigle_sqlite_import,
+               args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     return render_template('import.html', filename=filename, filetype=filetype, accuracy=accuracy)
+
+
+@socketio.on('stopimport', namespace='/importer')
+def stopimport():
+    wifiapp.wimporter.importrun = False
+    print("STOP")

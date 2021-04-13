@@ -13,22 +13,23 @@
 
 			$(document).ready(function() {
 
-				var socket = io.connect('localhost:5000');
+				var socket = io.connect('localhost:5000/importer');
 
-				socket.on('message', function(msg) {
-					if (msg["msg"]==='importinfo') {
-						$("#messages").append('<li>'+msg["info"]+'</li>');
-						$("#progressbar").attr("value", parseInt(msg["checkloc"], 10))
-						}
-					if (msg["msg"]==='number_of_loc_and_ap') {
-						$("#numberap").append(msg["numberap"]);
-						$("#numberloc").append(msg["numberloc"]);
-						$("#progressbar").attr("max", parseInt(msg["numberloc"], 10))
-						}
-					if (msg["msg"]==='resultinfo') {
-						$("#result").text(msg["info"]);
-						}
+				socket.on('numberaploc', function(filename, numberap, numberloc){
+					$("#numberap").append(numberap);
+					$("#numberloc").append(numberloc);
+				});
 
+				socket.on('checkloc', function(filename, progress) {
+					$("#progressbar").attr("value", parseInt(progress, 10));
+				});
+
+				socket.on('importinfo', function(msg) {
+					$("#messages").append('<li>'+msg+'</li>');
+				});
+
+				socket.on('resultinfo', function(filename, msg) {
+					$("#result").text(msg);
 				});
 
 			});

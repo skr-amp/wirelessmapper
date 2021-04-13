@@ -10,6 +10,7 @@ from wifiapp import app
 from wifiapp.macvendor import GetVendor
 from flask import flash
 
+importrun = False
 
 def check_file(filename):
     """Getting information about a imported file"""
@@ -168,7 +169,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
                     numberap += 1
                 else:
                     aplist[bssid]["location"].add((loclat, loclon, localtitude, locaccuracy, loclevel, loctime, deviceid))
-        socketio.send({"msg": "number_of_loc_and_ap", "numberloc":numberloc, "numberap":numberap}, broadcast=True)
+        socketio.send('numberaploc', {"numberloc": numberloc, "numberap": numberap}, namespace='/importer', broadcast=True)
 
         addedap = 0
         addedloc = 0
@@ -248,20 +249,19 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     importcursor.execute(
         'SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?', (importfirsttime, accuracy))
     numberloc = importcursor.fetchone()[0]
-    socketio.send({"msg": "number_of_loc_and_ap", "numberloc": numberloc, "numberap": numberap}, broadcast=True)
+    socketio.emit('numberaploc', (filename.replace(".", ""), numberap, numberloc), namespace='/importer', broadcast=True)
 
     importaplist = []
     for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<? AND location.bssid>? ORDER BY network.bssid',
             (importfirsttime, accuracy, lastimportbssid)):
         importaplist.append({"bssid": ap[0], "ssid": ap[1], "frequency": ap[2], "capabilities": ap[3]})
-    print(importaplist  [0])
-
 
     addedap = 0
     addedloc = 0
     apdblist = get_list_ap_in_db()
     for ap in importaplist:
-        msg = {"msg": "importinfo"}
+        if not importrun:
+            break
         if ap["bssid"] in apdblist.keys():
             if apdblist[ap["bssid"]]["count"] == 1:  # if the database already has only one access point with this bssid
                 importcursor.execute("SELECT lat, lon, altitude, accuracy, level, datetime(time/1000, 'unixepoch', 'localtime') FROM location WHERE bssid=? AND location.time>? AND location.accuracy<?", (ap["bssid"], importfirsttime, accuracy))
@@ -271,7 +271,7 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
                      ap_change(apdblist[ap["bssid"]]["info"][0], ap)
                 numberaddloc = add_loc_in_db(apdblist[ap["bssid"]]["info"][0]["id"], locations)
                 addedloc += numberaddloc
-                msg["info"] = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(
+                importmsg = 'The access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} is already in the database. {2} new locations imported'.format(
                             ap["bssid"], ap["ssid"], numberaddloc, apdblist[ap["bssid"]]["info"][0]["id"])
                 if numberaddloc > 0: calc_ap_coord(apdblist[ap["bssid"]]["info"][0]["id"])
             elif apdblist[ap["bssid"]]["count"] > 1:     #if the database already has multiple access points with this bssid             !!!!!!!!!!!!!!!!!!!!!!!
@@ -283,27 +283,30 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
             addedap += 1
             numberaddloc = add_loc_in_db(id, locations)
             addedloc += numberaddloc
-            msg["info"] = 'A new access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} has been added to the database. {2} new locations imported'.format(
+            importmsg = 'A new access point with bssid: <a href="/location/{3}" target="_blank">{0}</a> and ssid: {1} has been added to the database. {2} new locations imported'.format(
                 ap["bssid"], ap["ssid"], numberaddloc, id)
             if numberaddloc > 0: calc_ap_coord(id)
         checkloc += len(locations)
-        msg["checkloc"] = checkloc
-        socketio.send(msg, broadcast=True)
+        socketio.emit('importinfo', importmsg, namespace='/importer', broadcast=True)
+        progress = (checkloc*100)//numberloc
+        socketio.emit('checkloc', (filename.replace(".", ""), progress), namespace='/importer', broadcast=True)
 
         curentdbcursor.execute("UPDATE importfiles SET lastimportbssid=?, checkloc=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
                 (ap["bssid"], checkloc, feature, filesize, accuracy))
         curentdbconn.commit()
 
-    msg = {"msg": "resultinfo"}
-    msg["info"] = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
-    socketio.send(msg, broadcast=True)
-    curent_db_info_update()
-    importconn.close()
-    importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    curentdbcursor.execute("UPDATE importfiles SET importtime=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
+    if importrun:
+        curent_db_info_update()
+        importconn.close()
+        importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        curentdbcursor.execute("UPDATE importfiles SET importtime=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
             (importtime, feature, filesize, accuracy))
-    curentdbconn.commit()
-    curentdbconn.close()
+        curentdbconn.commit()
+        curentdbconn.close()
+        resultmsg = 'Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
+    else:
+        resultmsg = 'Import stopped. Imported new access points: {0} Imported new locations: {1}'.format(addedap, addedloc)
+    socketio.emit('resultinfo', (filename.replace(".", ""), resultmsg), namespace='/importer', broadcast=True)
 
 def ap_change(apindb, newap):
     """records ssid, capabilities, and time from imported data other than stored in the application database."""

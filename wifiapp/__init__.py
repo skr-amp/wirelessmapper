@@ -7,5 +7,4 @@ app.secret_key = "fbdsfbdsbfmdsbfmbsdmfbsdm"
 socketio = SocketIO(app, async_mode='threading')
 app.config.from_object(Config)
 
-
 from wifiapp import routes

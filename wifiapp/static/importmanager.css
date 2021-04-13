@@ -81,6 +81,14 @@ width: 28px;
     margin-top: 5px;
     width: 136px;
 }
+
+.stopbtn {
+    height: 28px;
+	font-size: 14px;
+    margin-top: 5px;
+    width: 136px;
+}
+
 input[type="number"]{
 width: 30px;
 }
@@ -102,6 +110,14 @@ width: 140px;
 }
 .accuracyl, input[name="accuracy"]{
 display: inline;
+}
+
+.accuracyl{
+color: black;
+}
+
+.progressform{
+display: none;
 }
 
 
