@@ -14,15 +14,18 @@
 
 				var socket = io.connect('localhost:5000/importer');
 
-				socket.on('checkloc', function(filename, progress) {
-					$("#" + filename + "_progressbar").attr("value", parseInt(progress, 10));
-
+				socket.on('numberaploc', function(filename, numberap, numberloc, accuracy) {
 					$(".importbtn").prop("disabled", true);
 					$("input[type=number]").prop("disabled", true);
 					$(".accuracyl").css("color", "grey");
 
+                    $("#" + filename + "_importaccuracy").append(accuracy);
 					$("#" + filename + "_importform").hide();
 					$("#" + filename + "_progress").show();
+				});
+
+				socket.on('checkloc', function(filename, progress) {
+					$("#" + filename + "_progressbar").attr("value", parseInt(progress, 10));
 				});
 
 				socket.on('resultinfo', function(filename, resultmsg) {
@@ -38,7 +41,6 @@
 
                 $(".stopbtn").on('click', function() {
                     socket.emit("stopimport");
-                    console.log("click");
                 });
 			});
 </script>
@@ -146,7 +148,7 @@
                                     <input class="importbtn" type="submit" value="Continue importing">
                                 {% endif %}
                             {% else %}
-                                <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} id="accuracy" name="accuracy"/>
+                                <input type="number" step="1" min={{uploadfiles[source['feature']][i]["minaccuracy"]+1}} max="100" value=4 id="accuracy" name="accuracy"/>
                                 <input class="importbtn" type="submit" value="Import">
                             {% endif %}
                         {% else %}
@@ -156,7 +158,7 @@
                     </form>
                 </div>
                 <div class="progressform" id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progress">
-                    <label >GPS accuracy: {{uploadfiles[source['feature']][i]["minaccuracy"]}}</label>
+                    <label id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_importaccuracy">GPS accuracy: </label>
                     <progress id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progressbar" value="0" max="100"></progress>
                     <button class="stopbtn">Stop Import</button>
                 </div>

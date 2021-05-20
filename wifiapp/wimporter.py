@@ -249,7 +249,7 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
     importcursor.execute(
         'SELECT COUNT(*) FROM location LEFT JOIN network ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<?', (importfirsttime, accuracy))
     numberloc = importcursor.fetchone()[0]
-    socketio.emit('numberaploc', (filename.replace(".", ""), numberap, numberloc), namespace='/importer', broadcast=True)
+    socketio.emit('numberaploc', (filename.replace(".", ""), numberap, numberloc, accuracy), namespace='/importer', broadcast=True)
 
     importaplist = []
     for ap in importcursor.execute('SELECT DISTINCT network.bssid, ssid, frequency, capabilities FROM network LEFT JOIN location ON network.bssid=location.bssid WHERE network.type="W" AND location.time>? AND location.accuracy<? AND location.bssid>? ORDER BY network.bssid',

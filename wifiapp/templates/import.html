@@ -15,7 +15,7 @@
 
 				var socket = io.connect('localhost:5000/importer');
 
-				socket.on('numberaploc', function(filename, numberap, numberloc){
+				socket.on('numberaploc', function(filename, numberap, numberloc, accuracy){
 					$("#numberap").append(numberap);
 					$("#numberloc").append(numberloc);
 				});
