@@ -203,7 +203,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
         socketio.send(msg, broadcast=True)
         conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
         cursor = conn.cursor()
-        cursor.execute("UPDATE importsource SET lasttime = ?  WHERE feature = ?", (lasttime, feature))
+        cursor.execute("UPDATE uploadsource SET lasttime = ?  WHERE feature = ?", (lasttime, feature))
         conn.commit()
         conn.close()
         importtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -458,16 +458,16 @@ def add_file_to_appdb(filename):
     fileinfo = check_file(filename)
     conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM importsource WHERE feature=?", (fileinfo["feature"],))
+    cursor.execute("SELECT id FROM uploadsource WHERE feature=?", (fileinfo["feature"],))
     sourceid = cursor.fetchone()
     if not sourceid:
-        cursor.execute("INSERT INTO importsource ('feature', 'type', 'app', 'firsttime', 'lasttime', 'device') VALUES(?, ?, ?, ?, ?, ?)",
+        cursor.execute("INSERT INTO uploadsource ('feature', 'type', 'app', 'firsttime', 'lasttime', 'device') VALUES(?, ?, ?, ?, ?, ?)",
                        (fileinfo['feature'], fileinfo['type'], fileinfo['app'], fileinfo['firsttime'], fileinfo['firsttime'], fileinfo['device']))
         conn.commit()
         cursor.execute("SELECT LAST_INSERT_ROWID()")
         sourceid = cursor.fetchone()
     if fileinfo["type"] == "csv":
-        cursor.execute("SELECT filename, uploadtime FROM importfiles WHERE sourceid=?", (sourceid[0],))
+        cursor.execute("SELECT filename, uploadtime FROM uploadfiles WHERE sourceid=?", (sourceid[0],))
         fileindb = cursor.fetchone()
         if fileindb:
             flash("The file with this data was uploaded earlier on " + fileindb[1] + " with the name " + fileindb[0], "error")
@@ -475,13 +475,13 @@ def add_file_to_appdb(filename):
             conn.close()
             return False
         else:
-            cursor.execute("INSERT INTO importfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+            cursor.execute("INSERT INTO uploadfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
                            (sourceid[0], filename, fileinfo["filesize"],  uploadtime, fileinfo["firsttime"], fileinfo["lasttime"], fileinfo["network"], fileinfo["location"],))
             conn.commit()
             conn.close()
             return True
     elif fileinfo["type"] == "sqlite":
-        cursor.execute("SELECT filename, uploadtime, lasttime FROM importfiles WHERE sourceid=?", (sourceid[0],))
+        cursor.execute("SELECT filename, uploadtime, lasttime FROM uploadfiles WHERE sourceid=?", (sourceid[0],))
         for fileindb in cursor.fetchall():
             if fileinfo["lasttime"] == fileindb[2]:
                 flash("The file with this data was uploaded earlier on " + fileindb[1] + " with the name " + fileindb[0], "error")
@@ -490,7 +490,7 @@ def add_file_to_appdb(filename):
                 return False
 
         cursor.execute(
-                "INSERT INTO importfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO uploadfiles ('sourceid', 'filename', 'filesize', 'uploadtime', 'firsttime', 'lasttime', 'numberap', 'numberloc') VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
                 (sourceid[0], filename, fileinfo["filesize"], uploadtime, fileinfo["firsttime"], fileinfo["lasttime"],
                  fileinfo["network"], fileinfo["location"],))
         conn.commit()
@@ -501,7 +501,7 @@ def get_source():
     """"""
     conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute("SELECT importsource.feature, importsource.type, importsource.app, importsource.device FROM importsource JOIN importfiles ON importsource.id = importfiles.sourceid GROUP BY importsource.feature ORDER BY MAX(importfiles.uploadtime) DESC")
+    cursor.execute("SELECT uploadsource.feature, uploadsource.type, uploadsource.app, uploadsource.device FROM uploadsource JOIN uploadfiles ON uploadsource.id = uploadfiles.sourceid GROUP BY uploadsource.feature ORDER BY MAX(uploadfiles.uploadtime) DESC")
     sources = []
     for source in cursor.fetchall():
         sources.append({"feature": source[0], "type": source[1], "app": source[2], "device": source[3]})
@@ -512,7 +512,7 @@ def get_uploadfiles():
     """"""
     conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
     cursor = conn.cursor()
-    cursor.execute("SELECT feature, filename, filesize, importfiles.firsttime, importfiles.lasttime, numberap, numberloc, uploadtime FROM importfiles JOIN importsource ON importfiles.sourceid = importsource.id ORDER BY numberloc")
+    cursor.execute("SELECT feature, filename, filesize, uploadfiles.firsttime, uploadfiles.lasttime, numberap, numberloc, uploadtime FROM uploadfiles JOIN uploadsource ON uploadfiles.sourceid = uploadsource.id ORDER BY numberloc")
     files = {}
     for file in cursor.fetchall():
         if file[0] in files.keys():
@@ -582,7 +582,7 @@ def get_import_firsttime(feature, accuracy):
         if filesize:
             conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
             cursor = conn.cursor()
-            cursor.execute("SELECT strftime('%s', importfiles.lasttime, 'utc') FROM importfiles LEFT JOIN importsource ON importfiles.sourceid=importsource.id WHERE importsource.feature=? AND importfiles.filesize=?", (feature, filesize[0]))
+            cursor.execute("SELECT strftime('%s', uploadfiles.lasttime, 'utc') FROM uploadfiles LEFT JOIN uploadsource ON uploadfiles.sourceid=uploadsource.id WHERE uploadsource.feature=? AND uploadfiles.filesize=?", (feature, filesize[0]))
             lasttime = int(cursor.fetchone()[0])*1000
             conn.close()
             return lasttime
