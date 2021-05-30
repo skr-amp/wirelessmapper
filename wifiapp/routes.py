@@ -105,7 +105,7 @@ def setsourcedevice():
     if devicename:
         conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
         cursor = conn.cursor()
-        cursor.execute("UPDATE importsource SET device=? WHERE feature=?", (devicename, source))
+        cursor.execute("UPDATE uploadsource SET device=? WHERE feature=?", (devicename, source))
         conn.commit()
         conn.close()
     return redirect(url_for('importmanager'))
