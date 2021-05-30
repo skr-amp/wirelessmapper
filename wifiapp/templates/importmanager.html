@@ -105,7 +105,7 @@
                 {% endif %}
             </td>
             {% endif %}
-            <td class="filename">{{uploadfiles[source['feature']][i]["filename"]}} <img class="delbtn" onclick="window.location.href='#delform_{{uploadfiles[source['feature']][i]["filename"]}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}"></td>
+            <td class="filename">{{uploadfiles[source['feature']][i]["filename"]}} <img class="delbtn" onclick="window.location.href='#delform_{{uploadfiles[source['feature']][i]['filename']}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}"></td>
             <td>{{uploadfiles[source['feature']][i]["filesize"]}}</td>
             <td>{{uploadfiles[source['feature']][i]["firsttime"]}}</td>
             <td>{{uploadfiles[source['feature']][i]["lasttime"]}}</td>
@@ -190,9 +190,11 @@
 {% for source in sources %}
     {% for i in range(uploadfiles[source['feature']]|length) %}
         <a href="#x" class="overlay" id="delform_{{uploadfiles[source['feature']][i]["filename"]}}"></a>
-        <form class="modal" method="POST" action="/importmanager/deletefile">
+        <form class="modal" method="POST" action="/importmanager/delfile">
+            <input type="hidden" name="sourcefeature" value={{source['feature']}}>
             <input type="hidden" name="filename" value={{uploadfiles[source['feature']][i]["filename"]}}>
-            <label >Delete database from the list?</label>
+            <input type="hidden" name="filesize" value={{uploadfiles[source['feature']][i]["filesize"]}}>
+            <label >Delete the uploaded file named {{uploadfiles[source['feature']][i]["filename"]}}?</label>
             <input name="submit" class="btn" type="submit" value="Delete" />
         </form>
     {% endfor %}

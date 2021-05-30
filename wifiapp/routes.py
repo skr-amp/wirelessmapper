@@ -110,6 +110,19 @@ def setsourcedevice():
         conn.close()
     return redirect(url_for('importmanager'))
 
+@app.route('/importmanager/delfile', methods=['POST'])
+def delfile():
+    sourcefeature = request.form.get('sourcefeature')
+    filename = request.form.get('filename')
+    filesize = request.form.get('filesize')
+    conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM uploadfiles WHERE filename=? AND filesize=? AND sourceid=(SELECT id FROM uploadsource WHERE feature=?)", (filename, filesize, sourcefeature))
+    conn.commit()
+    conn.close()
+    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    os.remove(path)
+    return redirect(url_for('importmanager'))
 
 @app.route('/upload', methods=['POST'])
 def upload():
