@@ -97,7 +97,7 @@
 		                    <option value="{{device}}">{{device}}</option>
 	                    {% endfor %}
 	                    </select>
-	                    <input type="button" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
+	                    <input type="button" class="addbtn" name="adddevice" value="+" onclick="window.location.href='#addform'"><br>
                         <button class="selectdev" type="submit">Select device</button>
                     </form>
                 {% else %}
@@ -105,7 +105,7 @@
                 {% endif %}
             </td>
             {% endif %}
-            <td>{{uploadfiles[source['feature']][i]["filename"]}}</td>
+            <td class="filename">{{uploadfiles[source['feature']][i]["filename"]}} <img class="delbtn" onclick="window.location.href='#delform_{{uploadfiles[source['feature']][i]["filename"]}}'" src="{{ url_for('static', filename='images/deleteicon.svg')}}"></td>
             <td>{{uploadfiles[source['feature']][i]["filesize"]}}</td>
             <td>{{uploadfiles[source['feature']][i]["firsttime"]}}</td>
             <td>{{uploadfiles[source['feature']][i]["lasttime"]}}</td>
@@ -158,7 +158,7 @@
                     </form>
                 </div>
                 <div class="progressform" id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progress">
-                    <label id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_importaccuracy">GPS accuracy: </label>
+                    <label class="accuracylprogress" id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_importaccuracy">GPS accuracy: </label>
                     <progress id="{{uploadfiles[source['feature']][i]["filename"].replace(".", "")}}_progressbar" value="0" max="100"></progress>
                     <button class="stopbtn">Stop Import</button>
                 </div>
@@ -177,7 +177,7 @@
     <input type="hidden" name="filename" value={{filename}}>
     <label class="devname">New device name:</label>
     <input class="devname" type="text" name="devicename">
-    <input name="submit" class="addbtn" type="submit" value="Add device" />
+    <input name="submit" class="btn" type="submit" value="Add device" />
 </form>
 
 <a href="#x" class="overlay" id="uploadform"></a>
@@ -185,6 +185,18 @@
     <input type="file" name="file" id="file" class="input-file">
     <input class="btn uploadbtn" type="submit" value="Upload" id="upload-button">
 </form>
+
+
+{% for source in sources %}
+    {% for i in range(uploadfiles[source['feature']]|length) %}
+        <a href="#x" class="overlay" id="delform_{{uploadfiles[source['feature']][i]["filename"]}}"></a>
+        <form class="modal" method="POST" action="/importmanager/deletefile">
+            <input type="hidden" name="filename" value={{uploadfiles[source['feature']][i]["filename"]}}>
+            <label >Delete database from the list?</label>
+            <input name="submit" class="btn" type="submit" value="Delete" />
+        </form>
+    {% endfor %}
+{% endfor %}
 
 </body>
 </html>

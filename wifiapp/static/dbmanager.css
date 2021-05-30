@@ -307,6 +307,7 @@ opacity: 1;
 }
 
 .overlay:target+.modal{
+position: fixed;
 top: 5%;
 visibility: visible;
 opacity: 1;
