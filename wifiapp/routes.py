@@ -162,6 +162,7 @@ def wimport():
     deviceid = wifiapp.wimporter.get_device_id(device)
     filetype = request.form.get('filetype')
     if filetype == "csv":
+        wifiapp.wimporter.importrun = True
         Thread(target=wifiapp.wimporter.wigle_csv_import,
                args=(app, socketio, filename, accuracy, deviceid, feature)).start()
     elif filetype == "sqlite":
