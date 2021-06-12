@@ -88,9 +88,14 @@ def apinfo(apid):
         numberofloc = cursor.fetchone()[0]
         conn.close()
 
+    if apinfo[9]:
+        description = apinfo[9]
+    else:
+        description = "Нет описания"
+
     res = {"ssid": apinfo[2], "bssid": apinfo[1], "capabilities": apinfo[4], "channel": channel,
            "vendor": apinfo[8], "bestlevel": bestlevel, "firsttime": firsttime, "lasttime": lasttime,
-           "numberofloc": numberofloc}
+           "numberofloc": numberofloc, "description": description}
     return res
 
 def locationinfo(apid):

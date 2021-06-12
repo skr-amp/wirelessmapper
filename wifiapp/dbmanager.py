@@ -16,7 +16,8 @@ def createdb(dbtype, dbname, dbdata):
     	                    bestlat INTEGER, 
     	                    bestlon INTEGER, 
     	                    bestlevel INTEGER, 
-    	                    vendor VARCHAR(120))""",
+    	                    vendor VARCHAR(120), 
+    	                    description VARCHAR(120))""",
                    """CREATE TABLE device (
                           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                           devicename VARCHAR(64) UNIQUE)""",
@@ -56,7 +57,8 @@ def createdb(dbtype, dbname, dbdata):
 	                    bestlat FLOAT, 
 	                    bestlon FLOAT, 
 	                    bestlevel INTEGER, 
-	                    vendor VARCHAR(120), 
+	                    vendor VARCHAR(120),
+	                    description VARCHAR(120), 
 	                    PRIMARY KEY (id))""",
 	             """CREATE TABLE device (
 	                    id INTEGER NOT NULL AUTO_INCREMENT, 
@@ -194,7 +196,7 @@ def dbvalidate(dbtype, dbname, dbhost, dbuser, dbpassword):
     tables = []
     columns = []
     reqtables = {'ap', 'device', 'location', 'apchange', 'importfiles'}
-    reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor'},
+    reqcolums = {'ap':{'id', 'bssid', 'ssid', 'frequency', 'capabilities', 'bestlat', 'bestlon', 'bestlevel', 'vendor', 'description'},
                  'device':{'id', 'devicename'},
                  'location':{'id', 'apid', 'level', 'lat', 'lon', 'altitude', 'accuracy', 'time', 'deviceid'},
                  'apchange':{'id', 'apid', 'ssid', 'capabilities'},
