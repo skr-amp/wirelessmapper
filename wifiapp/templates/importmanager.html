@@ -14,17 +14,15 @@
 
 				var socket = io.connect('localhost:5000/importer');
 
-				socket.on('numberaploc', function(filename, numberap, numberloc, accuracy) {
-					$(".importbtn").prop("disabled", true);
+				socket.on('checkloc', function(filename, progress, accuracy) {
+				    $("#" + filename + "_importaccuracy").text("GPS accuracy: "+accuracy);
+				    $(".importbtn").prop("disabled", true);
 					$("input[type=number]").prop("disabled", true);
 					$(".accuracyl").css("color", "grey");
 
-                    $("#" + filename + "_importaccuracy").append(accuracy);
 					$("#" + filename + "_importform").hide();
 					$("#" + filename + "_progress").show();
-				});
 
-				socket.on('checkloc', function(filename, progress) {
 					$("#" + filename + "_progressbar").attr("value", parseInt(progress, 10));
 				});
 

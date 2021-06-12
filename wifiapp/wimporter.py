@@ -169,11 +169,8 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
     time.sleep(1)
     socketio.emit('numberaploc', (filename.replace(".", ""), numberap, numberloc, accuracy), namespace='/importer',
                   broadcast=True)
-    print(numberap)
-    print(numberloc)
 
     sortedbssids = sorted(importap)
-    print(sortedbssids)
 
     if app.config['CURRENT_DB_TYPE'] == 'sqlite':
         curentdbconn = sqlite3.connect('wifiapp/localdb/' + app.config['CURRENT_DB_NAME'])
@@ -196,8 +193,6 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
     addedloc = 0
     apdblist = get_list_ap_in_db()
     for bssid in sortedbssids:
-        print(bssid)
-        print(importrun)
         if not importrun:
             curentdbconn.close()
             break
@@ -224,7 +219,7 @@ def wigle_csv_import(app, socketio, filename, accuracy, deviceid, feature):
             checkloc += len(importap[bssid]["locations"])
             socketio.emit('importinfo', importmsg, namespace='/importer', broadcast=True)
             progress = (checkloc * 100) // numberloc
-            socketio.emit('checkloc', (filename.replace(".", ""), progress), namespace='/importer', broadcast=True)
+            socketio.emit('checkloc', (filename.replace(".", ""), progress, accuracy), namespace='/importer', broadcast=True)
 
             curentdbcursor.execute(
                 "UPDATE importfiles SET lastimportbssid=?, checkloc=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
@@ -319,7 +314,7 @@ def wigle_sqlite_import(app, socketio, filename, accuracy, deviceid, feature):
         checkloc += len(locations)
         socketio.emit('importinfo', importmsg, namespace='/importer', broadcast=True)
         progress = (checkloc*100)//numberloc
-        socketio.emit('checkloc', (filename.replace(".", ""), progress), namespace='/importer', broadcast=True)
+        socketio.emit('checkloc', (filename.replace(".", ""), progress, accuracy), namespace='/importer', broadcast=True)
 
         curentdbcursor.execute("UPDATE importfiles SET lastimportbssid=?, checkloc=? WHERE filefeature=? AND filesize=? AND importaccuracy=?",
                 (ap["bssid"], checkloc, feature, filesize, accuracy))
@@ -608,7 +603,6 @@ def get_import_firsttime(feature, accuracy):
         cursor.execute("SELECT filesize, MAX(importaccuracy) FROM importfiles WHERE filefeature=? AND importaccuracy>=? AND importtime IS NOT NULL GROUP BY filesize ORDER BY filesize DESC LIMIT 1", (feature, accuracy))
         filesize = cursor.fetchone()
         conn.close()
-        print(filesize)
         if filesize:
             conn = sqlite3.connect(os.path.join(app.config['APP_ROOT'], 'appdb.db'))
             cursor = conn.cursor()
